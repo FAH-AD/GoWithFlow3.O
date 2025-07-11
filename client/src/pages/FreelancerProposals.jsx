@@ -159,13 +159,13 @@ const FreelancerProposals = () => {
           icon: <XCircle size={14} className="mr-1" />,
           label: "Rejected",
         }
-      case "completed":
-        return {
-          bg: "bg-blue-500/10",
-          text: "text-blue-500",
-          icon: <CheckCircle size={14} className="mr-1" />,
-          label: "Completed",
-        }
+      // case "completed":
+      //   return {
+      //     bg: "bg-blue-500/10",
+      //     text: "text-blue-500",
+      //     icon: <CheckCircle size={14} className="mr-1" />,
+      //     label: "Completed",
+      //   }
       case "withdrawn":
         return {
           bg: "bg-gray-500/10",
@@ -262,16 +262,7 @@ const FreelancerProposals = () => {
                 >
                   Accepted
                 </button>
-                <button
-                  onClick={() => filterProposals("completed")}
-                  className={`px-4 py-2 rounded-md whitespace-nowrap mr-2 ${
-                    activeFilter === "completed"
-                      ? "bg-[#9333EA] text-white"
-                      : "bg-[#1e1e2d] text-gray-300 hover:bg-[#2d2d3a]"
-                  }`}
-                >
-                  Completed
-                </button>
+                
                 <button
                   onClick={() => filterProposals("rejected")}
                   className={`px-4 py-2 rounded-md whitespace-nowrap ${
@@ -353,7 +344,7 @@ const FreelancerProposals = () => {
                         </h3>
                         <div className="flex flex-wrap items-center gap-3 text-sm text-gray-400">
                           <span className="flex items-center">
-                            <DollarSign size={14} className="mr-1" />
+                           
                             PKR {proposal.budget.toLocaleString()}
                           </span>
                           <span className="flex items-center">

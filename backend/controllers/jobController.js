@@ -273,6 +273,7 @@ export const searchJobs = async (req, res, next) => {
 
 
 // 4. Get Jobs by Client
+
 export const getMyPostedJobs = async (req, res, next) => {
   try {
     const clientId = req.user._id;
@@ -280,7 +281,11 @@ export const getMyPostedJobs = async (req, res, next) => {
     const jobs = await Job.find({ client: clientId });
 
     if (!jobs || jobs.length === 0) {
-      throw new ApiError(httpStatus.NOT_FOUND, 'You have not posted any jobs yet.');
+      return res.status(httpStatus.OK).json({
+        status: 'success',
+        message: 'You have not posted any jobs yet.',
+        data: []
+      });
     }
 
     res.status(httpStatus.OK).json({
@@ -482,17 +487,17 @@ export const completeJob = async (req, res) => {
     const job = await Job.findById(req.params.id);
     
     if (!job) {
-      return errorResponse(res, 'Job not found', 404);
+      return customErrorHandler(res, 'Job not found', 404);
     }
     
     // Check if user is the job owner
     if (job.client.toString() !== req.user._id.toString()) {
-      return errorResponse(res, 'Not authorized. You can only complete your own jobs.', 403);
+      return customErrorHandler(res, 'Not authorized. You can only complete your own jobs.', 403);
     }
     
     // Check if job is in progress
     if (job.status !== 'in-progress') {
-      return errorResponse(res,  `Cannot complete job ${job.status}`, 400);
+      return customErrorHandler(res,  `Cannot complete job ${job.status}`, 400);
     }
     
     // Update job status
@@ -502,6 +507,7 @@ export const completeJob = async (req, res) => {
     
     // Get the hired freelancer
     const hiredFreelancer = await User.findById(job.hiredFreelancer);
+    const client = await User.findById(job.client);
 
     // Send email notifications
     await sendEmail({
@@ -509,6 +515,12 @@ export const completeJob = async (req, res) => {
      subject: 'Job Completed',
       text:`The job "${job.title}" has been marked as completed by the client.`}
     );
+      await sendEmail({
+      to: client.email,
+      subject: 'Job Marked as Completed',
+      text: `You've marked the job "${job.title}" as completed.`
+    });
+
     await sendEmail({
      to: req.user.email,
       subject:'Job Marked as Completed',
@@ -516,23 +528,14 @@ export const completeJob = async (req, res) => {
     );
 
     // Create notification for freelancer
-    await Notification.create({
-      recipient: job.hiredFreelancer,
-      type: 'job_completed',
-      title: 'Job Completed',
-      message: `The job ${job.title} has been marked as completed by the client.`,
-      data: {
-        job: job._id,
-        sender: req.user._id,
-      },
-    });
+    
     
     return successResponse(res, 200, {
       message: 'Job marked as completed',
     });
   } catch (error) {
     console.error('Complete job error:', error);
-    return errorResponse(res, error.message, 500);
+    return customErrorHandler(res, error.message, 500);
   }
 };
 
@@ -588,44 +591,100 @@ export const cancelJob = async (req, res) => {
   }
 };
 
-export const getClientActiveAndCompletedJobs = async (req, res, next) => {
-  try {
-    const clientId = req.user._id;
 
-    const jobs = await Job.find({
-      client: clientId,
-      status: { $in: ['in-progress', 'completed'] }
-    }).populate('hiredFreelancer', 'name email');
+export const getActiveAndCompletedJobs = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const userRole = req.user.role;
+
+    let jobs;
+    if (userRole === 'client') {
+      jobs = await Job.find({
+        client: userId,
+        status: { $in: ['in-progress', 'completed'] }
+      })
+      .populate('client', 'name email profilePic')
+      .populate('hiredFreelancer', 'name email profilePic')
+      .populate('bids')
+      .sort({ updatedAt: -1 });
+    } else if (userRole === 'freelancer') {
+      jobs = await Job.find({
+        $or: [
+          { hiredFreelancer: userId, status: { $in: ['in-progress', 'completed'] } },
+          { 'team.freelancer': userId, status: { $in: ['in-progress', 'completed'] } }
+        ]
+      })
+      .populate('client', 'name email profilePic')
+      .populate('hiredFreelancer', 'name email profilePic')
+      .populate('bids')
+      .sort({ updatedAt: -1 });
+    } else {
+      return next(new ApiError(httpStatus.FORBIDDEN, 'Invalid user role'));
+    }
+
+    const formattedJobs = jobs.map(job => {
+      const formattedJob = {
+        _id: job._id,
+        title: job.title,
+        description: job.description,
+        status: job.status,
+        budget: job.budget,
+        deadline: job.deadline,
+        createdAt: job.createdAt,
+        updatedAt: job.updatedAt,
+        completionDate: job.completionDate,
+        skills: job.skills,
+        category: job.category,
+        subCategory: job.subCategory,
+        attachments: job.attachments,
+        isCrowdsourced: job.isCrowdsourced,
+        client: {
+          _id: job.client._id,
+          name: job.client.name,
+          email: job.client.email,
+          profilePic: job.client.profilePic
+        },
+        milestones: job.milestones,
+        bids: job.bids.map(bid => ({
+          _id: bid._id,
+          freelancer: bid.freelancer,
+          amount: bid.amount,
+          deliveryTime: bid.deliveryTime,
+          status: bid.status
+        }))
+      };
+
+      if (job.isCrowdsourced) {
+        formattedJob.team = job.team.map(member => ({
+          _id: member._id,
+          freelancer: member.freelancer,
+          role: member.role,
+          status: member.status,
+          milestones: member.milestones
+        }));
+      } else {
+        formattedJob.hiredFreelancer = job.hiredFreelancer ? {
+          _id: job.hiredFreelancer._id,
+          name: job.hiredFreelancer.name,
+          email: job.hiredFreelancer.email,
+          profilePic: job.hiredFreelancer.profilePic
+        } : null;
+      }
+
+      return formattedJob;
+    });
 
     return successResponse(res, 200, {
-      message: 'Client jobs retrieved successfully.',
-      data: jobs
+      message: `${userRole === 'client' ? 'Client' : 'Freelancer'} jobs retrieved successfully.`,
+      data: formattedJobs
     });
   } catch (error) {
-    console.error('Client job fetch error:', error);
-    return next(new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Unable to fetch client jobs.'));
+    console.error('Job fetch error:', error);
+    return next(new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Unable to fetch jobs.'));
   }
 };
 
 
-export const getFreelancerActiveAndCompletedJobs = async (req, res, next) => {
-  try {
-    const freelancerId = req.user._id;
-
-    const jobs = await Job.find({
-      hiredFreelancer: freelancerId,
-      status: { $in: ['in-progress', 'completed'] }
-    }).populate('client', 'name email company');
-
-    return successResponse(res, 200, {
-      message: 'Freelancer jobs retrieved successfully.',
-      data: jobs
-    });
-  } catch (error) {
-    console.error('Freelancer job fetch error:', error);
-    return next(new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Unable to fetch freelancer jobs.'));
-  }
-};
 
 export const enableCrowdsourcing = async (req, res) => {
   try {

@@ -9,8 +9,8 @@ import {
   hireFreelancer,
   completeJob,
   cancelJob,
-  getClientActiveAndCompletedJobs,
-  getFreelancerActiveAndCompletedJobs,
+  getActiveAndCompletedJobs,
+
   enableCrowdsourcing,
   addTeamMember,
   removeTeamMember,
@@ -51,13 +51,13 @@ router.delete('/:id', protect, isClientOrAdmin, deleteJob);
 // Client routes
 router.get('/my/posted-jobs', protect, isClient, getMyPostedJobs);
 router.post('/:id/hire/:bidId', protect, isClient, hireFreelancer);
-router.put('/:id/complete', protect, isClient, completeJob);
+router.put('/:id/complete', protect, completeJob);
 router.put('/:id/cancel', protect, isClientOrAdmin, cancelJob);
-router.get('/client/status', protect, isClientOrAdmin, getClientActiveAndCompletedJobs);
+router.get('/user/active-jobs', protect, getActiveAndCompletedJobs);
 router.put('/:jobId/freelancer/:freelancerId/milestone/:milestoneId/approve', protect, isClient, approveMilestone);
 
 // Freelancer routes
-router.get('/freelancer/status', protect, isFreelancer, getFreelancerActiveAndCompletedJobs);
+router.get('/freelancer/status', protect, getActiveAndCompletedJobs);
 
 // Additional routes
 router.put('/:id/enable-crowdsourcing', protect, enableCrowdsourcing);

@@ -126,6 +126,7 @@ const Navbar = () => {
           { name: "Find Work", href: "/freelancer/search-job" },
           { name: "My Proposals", href: "/freelancer/my-proposals" },
           { name: "Hire Offers", href: "/freelancer/hire-offers" },
+
           { name: "Messages", href: "/freelancer/messages" },
         ];
       default:
@@ -273,6 +274,13 @@ const Navbar = () => {
                     >
                       <Users size={16} className="mr-2" />
                       My Teams
+                    </Link>
+                     <Link
+                      to={user?.role === 'client' ? `/client/my-teams` : `/freelancer/my-jobs`}
+                      className="flex items-center px-4 py-2 text-sm text-white hover:bg-[#2d2d3a] transition-colors"
+                    >
+                      <Briefcase size={16} className="mr-2" />
+                      My Jobs
                     </Link>
 
                     {verificationStatus && (

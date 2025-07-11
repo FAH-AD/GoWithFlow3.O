@@ -33,10 +33,7 @@ const ClientDashboard = () => {
   const [userProfile, setUserProfile] = useState(null);
   const navigate = useNavigate()
   const token = localStorage.getItem("authToken")
-  useEffect(() => {
-    setUserStatus(localStorage.getItem("userStatus"))
-  }, [setUserStatus])
-
+ 
 
   const user = useSelector((state) => state.Auth.user)
   useEffect(() => {
@@ -56,6 +53,7 @@ const ClientDashboard = () => {
         }
 
         const data = await response.json();
+        setUserStatus(data.data.user.clientVerification.status);
         setUserProfile(data.data.user);
       } catch (error) {
         console.error('Error fetching user profile:', error.message);

@@ -57,10 +57,26 @@ const ClientJobs = () => {
   const filterJobs = (status) => {
     return jobs?.filter((job) => job.status === status);
   };
+   const NoJobsMessage = () => (
+    <div className="bg-[#121218] rounded-lg border border-[#2d2d3a] p-8 text-center">
+      <Briefcase size={48} className="text-[#9333EA] mx-auto mb-4" />
+      <h2 className="text-2xl font-bold mb-2">No Jobs Posted Yet</h2>
+      <p className="text-gray-400 mb-6">You haven't posted any jobs. Start by creating your first job listing!</p>
+      <button
+        onClick={() => navigate("/client/post-job")}
+        className="bg-[#9333EA] hover:bg-[#a855f7] text-white px-6 py-3 rounded-md transition-colors duration-200"
+      >
+        Post Your First Job
+      </button>
+    </div>
+  );
 
   const JobSection = ({ title, status, icon: Icon }) => {
     const filteredJobs = filterJobs(status);
     const [isExpanded, setIsExpanded] = useState(activeSection === status);
+     if (jobs.length === 0) {
+      return null; // Don't render the section if there are no jobs
+    }
 
     return (
       <div className="mb-8 bg-[#121218] rounded-lg border border-[#2d2d3a] overflow-hidden transition-all duration-300 ease-in-out">
@@ -94,6 +110,15 @@ const ClientJobs = () => {
   };
 
   const JobCard = ({ job }) => {
+    const getJobRoute = (job) => {
+    if (job.isCrowdsourced) {
+      return `/client/my-teams/${job._id}`;
+    } else if (job.status === 'open') {
+      return `/client/jobs/${job._id}`;
+    } else {
+      return `/client/my-jobs/${job._id}`;
+    }
+  };
     return (
       <div className="p-4 border-t border-[#2d2d3a] hover:bg-[#1e1e2d] transition-colors duration-200">
         <h3 className="text-lg font-semibold mb-2">{job.title}</h3>
@@ -101,7 +126,7 @@ const ClientJobs = () => {
         <div className="flex justify-between items-center">
           <span className="text-[#9333EA]">PKR {job.budget}</span>
           <button
-            onClick={() => navigate(`/client/jobs/${job._id}`)}
+            onClick={() => navigate(getJobRoute(job))}
             className="bg-[#9333EA] hover:bg-[#a855f7] text-white px-4 py-2 rounded-md transition-colors duration-200"
           >
             View Details
@@ -149,10 +174,16 @@ const ClientJobs = () => {
       </div>
 
       <div className="container mx-auto px-4 py-8">
-        <JobSection title="Open Jobs" status="open" icon={Briefcase} />
-        <JobSection title="In-Progress Jobs" status="in-progress" icon={Clock} />
-        <JobSection title="Completed Jobs" status="completed" icon={CheckCircle} />
-        <JobSection title="Cancelled Jobs" status="cancelled" icon={XCircle} />
+        {jobs.length === 0 ? (
+          <NoJobsMessage />
+        ) : (
+          <>
+            <JobSection title="Open Jobs" status="open" icon={Briefcase} />
+            <JobSection title="In-Progress Jobs" status="in-progress" icon={Clock} />
+            <JobSection title="Completed Jobs" status="completed" icon={CheckCircle} />
+           
+          </>
+        )}
       </div>
     </div>
   );

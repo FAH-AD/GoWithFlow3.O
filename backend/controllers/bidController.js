@@ -253,7 +253,7 @@ export const getMyBids = async (req, res) => {
     const bids = await Bid.find(query)
       .populate({
         path: 'job',
-        select: 'title budget status client',
+        select: 'title budget status client isCrowdsourced',
         populate: {
           path: 'client',
           select: 'firstName lastName profileImage',

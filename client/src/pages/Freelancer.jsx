@@ -259,12 +259,7 @@ const unsaveJob = async (jobId) => {
 
                {/* Job Tabs */}
                <div className="flex mt-4 border-b border-[#2d2d3a]">
-                 <button
-                   className={`px-4 py-2 text-sm font-medium ${activeTab === "recommended" ? "text-[#9333EA] border-b-2 border-[#9333EA]" : "text-gray-400 hover:text-white"}`}
-                   onClick={() => setActiveTab("recommended")}
-                 >
-                   Recommended
-                 </button>
+                
                  {/* <button
                    className={`px-4 py-2 text-sm font-medium ${activeTab === "saved" ? "text-[#9333EA] border-b-2 border-[#9333EA]" : "text-gray-400 hover:text-white"}`}
                    onClick={() => setActiveTab("saved")}
@@ -331,7 +326,7 @@ const unsaveJob = async (jobId) => {
            
 
             {/* Upcoming Deadlines */}
-            <div className="bg-[#121218] rounded-lg border border-[#2d2d3a]">
+            {/* <div className="bg-[#121218] rounded-lg border border-[#2d2d3a]">
               <div className="p-6 border-b border-[#2d2d3a]">
                 <h2 className="text-xl font-bold">Upcoming Deadlines</h2>
               </div>
@@ -368,7 +363,9 @@ const unsaveJob = async (jobId) => {
                   View All Deadlines
                 </a>
               </div>
-            </div>
+            </div> */}
+
+
           </div>
         </div>
       </div>

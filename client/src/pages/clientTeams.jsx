@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import axios from "axios"
+import {  useParams } from "react-router-dom"
 import { Link } from "react-router-dom"
 import Navbar from "../components/Navbar"
 import {
@@ -23,6 +24,7 @@ import { motion, AnimatePresence } from "framer-motion"
 
 const ClientTeams = () => {
   const [teams, setTeams] = useState([])
+   const { jobId } = useParams()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [selectedTeam, setSelectedTeam] = useState(null)
@@ -40,6 +42,12 @@ const ClientTeams = () => {
         })
         console.log("Fetched teams:", response.data.data)
         setTeams(response.data.data)
+         if (jobId) {
+        const teamToSelect = response.data.data.find(team => team._id === jobId)
+        if (teamToSelect) {
+          setSelectedTeam(teamToSelect)
+        }
+      }
         setLoading(false)
       } catch (err) {
         setError("Failed to fetch teams")

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useParams } from "react-router-dom"
 import { useSelector } from "react-redux"
 import axios from "axios"
 import {
@@ -23,6 +23,7 @@ import { uploadFile } from "../services/fileUpload" // Import the uploadFile fun
 
 const MyTeams = () => {
   const navigate = useNavigate()
+  const { jobId } = useParams()
   const user = useSelector((state) => state.Auth.user)
   const [teams, setTeams] = useState([])
   const [isLoading, setLoading] = useState(true)
@@ -63,6 +64,12 @@ const MyTeams = () => {
       })
       console.log("Fetched teams:", response.data.data)
       setTeams(response.data.data)
+       if (jobId) {
+        const teamToSelect = response.data.data.find(team => team._id === jobId)
+        if (teamToSelect) {
+          setSelectedTeam(teamToSelect)
+        }
+      }
       setLoading(false)
     } catch (err) {
       console.error("Error fetching teams:", err);

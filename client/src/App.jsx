@@ -41,6 +41,9 @@ import SearchFreelancers from './pages/SearchFreelancers';
 import ClientTeams from './pages/clientTeams';
 import FreelancerTeams from './pages/FreelancerTeams';
 import HireOffers from './pages/HireOffers';
+import FreelancerJobs from './pages/FreelancerJobs';
+import FreelancerJobDetails from './pages/FreealncerJobDetails';
+import ClientJobDetails from './pages/ClientJobDetails';
 
 
 // Forgot Password Flow
@@ -112,7 +115,8 @@ export default function App() {
             <Route path="my-jobs" element={<ClientJobs />} />
             <Route path="search-freelancers" element={< SearchFreelancers />} />
             <Route path="jobs/:jobId" element={isClient ? <JobBids /> : <Navigate to="/" />} />
-            <Route path="my-teams" element={<ClientTeams />} />
+            <Route path="my-jobs/:jobId" element={<ClientJobDetails/>} />
+            <Route path="my-teams/:jobId?" element={<ClientTeams />} />
             <Route path="message-test" element={<MessageTest />} />
             <Route path="messages" element={<Messaging />} />
             <Route path="messages/:conversationId" element={<Messaging />} />
@@ -126,9 +130,11 @@ export default function App() {
             <Route path="search-job" element={<SearchJobs/>} />
             <Route path="apply-job/:jobId" element={<ApplyOnJobPage />} />
             <Route path="my-proposals" element={<FreelacnerProposals />} />
-            <Route path="my-teams" element={<FreelancerTeams />} />
+             <Route path="my-jobs" element={<FreelancerJobs />} />
+            <Route path="my-teams/:jobId?" element={<FreelancerTeams />} />
             <Route path="hire-offers" element={<HireOffers />} />
-            <Route path="jobs/:jobId" element={<ProposalDetails />} />
+            <Route path="proposals/:jobId" element={<ProposalDetails />} />
+            <Route path="jobs/:jobId" element={<FreelancerJobDetails />} />
             <Route path="messages" element={<Messaging />} />
             <Route path="messages/:conversationId" element={<Messaging />} />
             <Route path="profile/:userId" element={<FreelancerProfile />} />

@@ -63,6 +63,7 @@ const ProposalDetails = () => {
       }
 
       const jobData = await jobResponse.json()
+      console.log(jobData.data,'specific job details')
       setJob(jobData.data)
       
       // Fetch client profile
@@ -434,33 +435,47 @@ const ProposalDetails = () => {
                       <p className="whitespace-pre-line">{userBid.proposal}</p>
                     </div>
                   </div>
+                   {(() => {
+        let milestonesToDisplay = userBid.milestones;
 
-                  {userBid.milestones && userBid.milestones.length > 0 && (
-                    <div>
-                      <h3 className="text-lg font-bold mb-2">Milestones</h3>
-                      <div className="space-y-3">
-                        {userBid.milestones.map((milestone, index) => (
-                          <div key={index} className="bg-[#1e1e2d] p-4 rounded-lg">
-                            <div className="flex justify-between items-center mb-2">
-                              <h4 className="font-bold">{milestone.title}</h4>
-                              <span className="bg-[#2d2d3a] px-3 py-1 rounded-md text-sm">
-                                PKR {milestone.amount.toLocaleString()}
-                              </span>
-                            </div>
-                            <p className="text-gray-300 mb-2">{milestone.description}</p>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-gray-400">Due: {formatDate(milestone.dueDate)}</span>
-                              <span
-                                className={`${milestone.status === "completed" ? "text-green-500" : "text-yellow-500"}`}
-                              >
-                                {milestone.status.charAt(0).toUpperCase() + milestone.status.slice(1)}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+        if (userBid.status === "accepted") {
+          if (job.isCrowdsourced) {
+            milestonesToDisplay = job.team[0].milestones;
+            console.log(job.team[0].milestones, 'milestonesToDisplay')
+          } else if (!job.isCrowdsourced && job.milestones) {
+            milestonesToDisplay = job.milestones;
+            console.log(milestonesToDisplay, 'milestonesToDisplay')
+          }
+        }
+
+        return milestonesToDisplay && milestonesToDisplay.length > 0 && (
+          <div>
+            <h3 className="text-lg font-bold mb-2">Milestones</h3>
+            <div className="space-y-3">
+              {milestonesToDisplay.map((milestone, index) => (
+                <div key={index} className="bg-[#1e1e2d] p-4 rounded-lg">
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="font-bold">{milestone.title}</h4>
+                    <span className="bg-[#2d2d3a] px-3 py-1 rounded-md text-sm">
+                      PKR {milestone.amount.toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="text-gray-300 mb-2">{milestone.description}</p>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">Due: {formatDate(milestone.deadline)}</span>
+                    <span
+                      className={`${milestone.status === "completed" ? "text-green-500" : "text-yellow-500"}`}
+                    >
+                      {milestone.status.charAt(0).toUpperCase() + milestone.status.slice(1)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+                  
                 </div>
               </div>
             )}
