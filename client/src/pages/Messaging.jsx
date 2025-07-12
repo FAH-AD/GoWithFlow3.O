@@ -315,11 +315,13 @@ const Messaging = () => {
         createdAt: currentTime,
         timestamp: currentTime,
         isRead: false,
-        status: "sending",
+        status: "sent",
         isTempMessage: true,
       } 
 
       console.log("Temp message:", tempMessage) // Debug log
+
+      
 
       dispatch(addMessage(tempMessage ));
       scrollToBottom()
@@ -343,13 +345,23 @@ const Messaging = () => {
 
       const data = await response.json()
       console.log("Message sent successfully:", data)
+      const otherParticipant = selectedConversation.participants.find(
+      (p) => p._id !== data.message.message.sender._id // or sender.id
+    );
+
+      const otherParticipantId = otherParticipant?._id;
+
       console.log("receiver id",selectedConversation.participants[1]._id)
-       webSocketSingleton.sendMessage({conversationId: selectedConversation._id, message: data.message.message, receiverId: selectedConversation.participants[1]._id})
+       webSocketSingleton.sendMessage({conversationId: selectedConversation._id, message: data.message.message, receiverId: otherParticipantId})
       // Replace temp message with real message
            // Update conversation with new message
 
 
       // Update conversation with new message
+
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) => (msg._id.startsWith("temp-") ? { ...msg, status: "sent" } : msg)),
+      )
       updateConversationWithNewMessage(selectedConversation._id, data.message)
     } catch (error) {
       console.error("Failed to send message:", error)
@@ -697,7 +709,6 @@ const formatMessageTime = (dateString) => {
     }
   }
 
-  console.log({messages})
 
   // Get other participant in conversation
   const getOtherParticipant = (conversation) => {
