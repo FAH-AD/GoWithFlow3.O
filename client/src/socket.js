@@ -111,8 +111,9 @@ class WebSocketSingleton {
     handleReceivedMessage = (data) => {
       
         console.log("📩 Received message:", data);
+        console.log(store.getState().messaging.selectedConversation?._id)
         if (data.conversation === store.getState().messaging.selectedConversation?._id) {
-            store.dispatch(setMessages(data));
+            // store.dispatch(setMessages(data));
             store.dispatch(addMessage(data))
           }
       

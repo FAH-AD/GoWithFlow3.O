@@ -21,7 +21,8 @@ const messagingSlice = createSlice({
       state.messages = action.payload;
     },
     addMessage: (state, action) => {
-      state.messages = [ ...(state.messages || []),action.payload,];
+      console.log("state messages", action.payload)
+      state.messages = [ ...(state.messages || []),action.payload];
     },
     addNewMessage: (state, action) => {
       const { conversationId, message } = action.payload;
