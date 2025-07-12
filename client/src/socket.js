@@ -19,7 +19,7 @@ class WebSocketSingleton {
         });
 
         this.socket.on('connect', () => {
-            console.log("✅ Socket connected");
+            console.log("Socket connected");
 
             // After reconnecting, rejoin all conversations
             this.conversations.forEach((conversationId) => {
@@ -28,7 +28,7 @@ class WebSocketSingleton {
         });
 
         this.socket.on('disconnect', () => {
-            console.log("❌ Socket disconnected");
+            console.log("Socket disconnected");
         });
 
         this.socket.on("new_message", this.handleNewMessage);

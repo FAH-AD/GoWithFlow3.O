@@ -61,7 +61,7 @@ const handleSocketEvents = (io) => {
 
     // Listen for received message (if needed separately)
     socket.on('receive-message', (message) => {
-      console.log("📩 Message received on server:", message);
+      console.log("Message received on server:", message);
     });
 
     // Typing indicators
@@ -75,7 +75,7 @@ const handleSocketEvents = (io) => {
 
     // Handle disconnect
     socket.on('disconnect', () => {
-      console.log('❌ User disconnected:', socket.user?.id);
+      console.log('User disconnected:', socket.user?.id);
       users.delete(socket.user.id); // Remove user from active users map
     });
   });

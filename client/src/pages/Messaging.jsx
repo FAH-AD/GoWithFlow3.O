@@ -728,11 +728,11 @@ const formatMessageTime = (dateString) => {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white">
+    <div className=" bg-[#0a0a0f] text-white">
       <Navbar />
-      <div className="h-[calc(100vh-64px)] flex flex-col">
+      <div className="flex flex-col">
         {/* Header */}
-        <div className="bg-gradient-to-r from-[#9333EA]/20 to-[#0a0a0f] border-b border-[#2d2d3a] py-4 px-4">
+        {/* <div className="bg-gradient-to-r mb-6 h-[0px] from-[#9333EA]/20 to-[#0a0a0f] border-b border-[#2d2d3a] flex items-center">
           <div className="container mx-auto">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
@@ -742,7 +742,7 @@ const formatMessageTime = (dateString) => {
                 >
                   <ArrowLeft size={20} />
                 </button>
-                <h1 className="text-xl font-bold">Messages</h1>
+                <h1 className="text-2xl font-bold">Messages</h1>
               </div>
               <div className="flex items-center gap-2">
                 <button className="p-2 rounded-full hover:bg-[#1e1e2d] transition-colors">
@@ -754,7 +754,7 @@ const formatMessageTime = (dateString) => {
               </div>
             </div>
           </div>
-        </div>
+        </div> */}
 
         {/* Error message */}
         {error && (
@@ -767,7 +767,7 @@ const formatMessageTime = (dateString) => {
         )}
 
         {/* Main Content */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex h-[100%] overflow-hidden">
           {/* Conversations List */}
           <div
             className={`w-full md:w-80 lg:w-96 border-r border-[#2d2d3a] flex flex-col ${
@@ -776,7 +776,7 @@ const formatMessageTime = (dateString) => {
           >
             {/* Search and Filter */}
             <div className="p-4 border-b border-[#2d2d3a]">
-              <div className="relative">
+              {/* <div className="relative">
                 <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
@@ -785,9 +785,9 @@ const formatMessageTime = (dateString) => {
                   onChange={handleSearch}
                   className="w-full pl-10 pr-4 py-2 bg-[#1e1e2d] border border-[#2d2d3a] rounded-md text-white focus:outline-none focus:ring-2 focus:ring-[#9333EA] focus:border-transparent"
                 />
-              </div>
+              </div> */}
 
-              <div className="flex mt-3 border-b border-[#2d2d3a]">
+              {/* <div className="flex mt-3 border-b border-[#2d2d3a]">
                 <button
                   onClick={() => handleFilterChange("all")}
                   className={`px-3 py-2 text-sm font-medium ${
@@ -816,7 +816,7 @@ const formatMessageTime = (dateString) => {
                 >
                   Starred
                 </button>
-              </div>
+              </div> */}
             </div>
 
             {/* Conversations */}
@@ -864,7 +864,7 @@ const formatMessageTime = (dateString) => {
                             {otherParticipant ? `${otherParticipant.name}` : "Unknown User"}
                           </h3>
                           <div className="flex items-center">
-                            <button
+                            {/* <button
                               onClick={(e) => toggleStar(conversation, e)}
                               className="p-1 text-gray-400 hover:text-[#9333EA]"
                             >
@@ -873,7 +873,7 @@ const formatMessageTime = (dateString) => {
                               ) : (
                                 <StarOff size={14} />
                               )}
-                            </button>
+                            </button> */}
                             <span className="text-xs text-gray-400 ml-1">
                               {formatConversationTime(conversation.updatedAt)}
                             </span>
@@ -905,7 +905,7 @@ const formatMessageTime = (dateString) => {
 
           {/* Chat Area */}
           {selectedConversation ? (
-            <div className={`flex-1 flex flex-col ${!selectedConversation && window.innerWidth < 768 ? "hidden" : ""}`}>
+            <div className={`flex-1 flex flex-col h-[80vh] ${!selectedConversation && window.innerWidth < 768 ? "hidden" : ""}`}>
               {/* Chat Header */}
               <div className="p-4 border-b border-[#2d2d3a] flex items-center justify-between">
                 <div className="flex items-center">
@@ -945,10 +945,10 @@ const formatMessageTime = (dateString) => {
                         : "Unknown User"}
                     </h3>
                     <p className="text-xs text-gray-400">
-                      {getOtherParticipant(selectedConversation)?.isOnline ? "Online" : "Offline"}
+                      {/* {getOtherParticipant(selectedConversation)?.isOnline ? "Online" : "Offline"} */}
                       {selectedConversation.job && (
                         <>
-                          <span className="mx-1">•</span>
+                          
                           {selectedConversation.job.title}
                         </>
                       )}
@@ -959,15 +959,15 @@ const formatMessageTime = (dateString) => {
                   <button className="p-2 rounded-full hover:bg-[#1e1e2d] transition-colors">
                     <Phone size={18} />
                   </button>
-                  <button className="p-2 rounded-full hover:bg-[#1e1e2d] transition-colors">
+                  {/* <button className="p-2 rounded-full hover:bg-[#1e1e2d] transition-colors">
                     <Video size={18} />
-                  </button>
-                  <button
+                  </button> */}
+                  {/* <button
                     onClick={() => setShowUserInfo(!showUserInfo)}
                     className={`p-2 rounded-full transition-colors ${showUserInfo ? "bg-[#1e1e2d]" : "hover:bg-[#1e1e2d]"}`}
                   >
                     <Info size={18} />
-                  </button>
+                  </button> */}
                 </div>
               </div>
 
@@ -1125,12 +1125,12 @@ const formatMessageTime = (dateString) => {
               <div className="p-4 border-t border-[#2d2d3a]">
                 <div className="flex items-end gap-2">
                   <div className="relative">
-                    <button
+                    {/* <button
                       onClick={() => setShowAttachmentOptions(!showAttachmentOptions)}
                       className="p-2 rounded-full hover:bg-[#1e1e2d] transition-colors"
                     >
                       <Paperclip size={20} />
-                    </button>
+                    </button> */}
                     {showAttachmentOptions && (
                       <div className="absolute bottom-full left-0 mb-2 bg-[#1e1e2d] rounded-lg border border-[#2d2d3a] shadow-lg p-2">
                         <div className="flex flex-col gap-2">
@@ -1295,12 +1295,12 @@ const formatMessageTime = (dateString) => {
                     <p className="text-sm font-medium">{selectedConversation.job.title}</p>
                     <p className="text-xs text-gray-400 mt-1">Project ID: #{selectedConversation.job._id}</p>
                     <div className="flex items-center mt-2">
-                      <button
+                      {/* <button
                         onClick={() => navigate(`/jobs/${selectedConversation.job._id}`)}
                         className="text-xs text-[#9333EA] hover:underline"
                       >
                         View Project
-                      </button>
+                      </button> */}
                     </div>
                   </div>
                 </div>

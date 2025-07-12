@@ -2,7 +2,10 @@
 
 import { useState, useEffect } from "react"
 import axios from "axios"
-import { useParams } from "react-router-dom"
+import { Navigate, useParams } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
+import { useSelector } from "react-redux";
+
 import Navbar from "../components/Navbar"
 import {
   DollarSign,
@@ -19,6 +22,7 @@ import {
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import HirePopup from "../components/HirePopup"
+import useConversation from "../components/useConversation"
 
 const JobBids = () => {
   const [bids, setBids] = useState(null)
@@ -33,8 +37,13 @@ const JobBids = () => {
   const [hirePopupOpen, setHirePopupOpen] = useState(false)
   const [freelancerId, setFreelancerId] = useState(null)
   const [selectedBidForHire, setSelectedBidForHire] = useState(null)
+    const user = useSelector((state) => state.Auth.user);
+    const userId = user? user.id : null;
+   const { startConversation } = useConversation({ user});
+   const navigate = useNavigate();
 
   const openHirePopup = (bid,freelancerId) => {
+    console.log("user", user)
     setSelectedBidForHire(bid)
     setFreelancerId(freelancerId)
     setHirePopupOpen(true)
@@ -83,6 +92,22 @@ const JobBids = () => {
   const closePopup = () => {
     setSelectedBid(null)
   }
+
+  const handleStartConversation = ({freelancerId}) => {
+    console.log(freelancerId,'freelancerid')
+    startConversation({
+      receiverId: freelancerId,
+      jobId,
+      onSuccess: (data) => {
+        navigate(`/client/messages/${data.message.conversation._id}`)
+        
+        console.log("Conversation created and joined:", data);
+      },
+      onError: (err) => {
+        console.error("Failed to start conversation", err);
+      },
+    });
+  };
 
   if (loading)
     return (
@@ -184,7 +209,7 @@ const JobBids = () => {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => handleMessage(bid.freelancer._id)}
+            onClick={ () => handleStartConversation({freelancerId: bid.freelancer._id})}
             className="bg-[#2D3748] text-white px-6 py-2 rounded-md flex items-center transition duration-300 ease-in-out hover:bg-[#4A5568]"
           >
             <MessageSquare className="mr-2" size={18} />
