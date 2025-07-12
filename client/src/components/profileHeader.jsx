@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Edit, Check, X, Upload } from "lucide-react"
 import { motion } from "framer-motion"
 
-const ProfileHeader = ({ user, isEditing, onEdit, onSave, onCancel, onImageChange, isOwnProfile, isSaving }) => {
+const ProfileHeader = ({ user, isEditing, onEdit, onSave, onCancel, onImageChange, isOwnProfile, isSaving,isUploading }) => {
   const [imagePreview, setImagePreview] = useState(user?.profilePic || null)
   const [dragActive, setDragActive] = useState(false)
 
@@ -74,7 +74,13 @@ const ProfileHeader = ({ user, isEditing, onEdit, onSave, onCancel, onImageChang
                   </div>
                 )}
                 <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                  <Upload size={24} className="text-white" />
+                  {isUploading ? (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full">
+            <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+        </div>
+                  ) : (
+                    <Upload size={24} className="text-white" />
+                  )}
                 </div>
                 <input
                   type="file"

@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import axios from "axios"
-import {  useParams } from "react-router-dom"
-import { Link } from "react-router-dom"
-import Navbar from "../components/Navbar"
+import { useState, useEffect } from "react";
+import axios from "axios";
+import { useParams } from "react-router-dom";
+import { Link } from "react-router-dom";
+import Navbar from "../components/Navbar";
 import {
   Users,
   Briefcase,
@@ -19,86 +19,101 @@ import {
   CheckSquare,
   User,
   MessageSquare,
-} from "lucide-react"
-import { motion, AnimatePresence } from "framer-motion"
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 const ClientTeams = () => {
-  const [teams, setTeams] = useState([])
-   const { jobId } = useParams()
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [selectedTeam, setSelectedTeam] = useState(null)
-  const [selectedMember, setSelectedMember] = useState(null)
-  const [newMilestoneOpen, setNewMilestoneOpen] = useState(false)
-  const token = localStorage.getItem("authToken")
+  const [teams, setTeams] = useState([]);
+  const { jobId } = useParams();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedTeam, setSelectedTeam] = useState(null);
+  const [selectedMember, setSelectedMember] = useState(null);
+  const [newMilestoneOpen, setNewMilestoneOpen] = useState(false);
+  const [approvingMilestoneId, setApprovingMilestoneId] = useState(null);
+  const token = localStorage.getItem("authToken");
 
   useEffect(() => {
     const fetchTeams = async () => {
       try {
-        const response = await axios.get("http://localhost:5000/api/jobs/client/teams", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
-        console.log("Fetched teams:", response.data.data)
-        setTeams(response.data.data)
-         if (jobId) {
-        const teamToSelect = response.data.data.find(team => team._id === jobId)
-        if (teamToSelect) {
-          setSelectedTeam(teamToSelect)
+        const response = await axios.get(
+          "http://localhost:5000/api/jobs/client/teams",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        setTeams(response.data.data);
+        if (jobId) {
+          const teamToSelect = response.data.data.find(
+            (team) => team._id === jobId
+          );
+          if (teamToSelect) {
+            setSelectedTeam(teamToSelect);
+          }
         }
-      }
-        setLoading(false)
+        setLoading(false);
       } catch (err) {
-        setError("Failed to fetch teams")
-        setLoading(false)
+        setError("Failed to fetch teams");
+        setLoading(false);
       }
-    }
+    };
 
-    fetchTeams()
-  }, [token])
+    fetchTeams();
+  }, [token]);
 
   const handleTeamSelect = (team) => {
-    setSelectedTeam(team)
-    setSelectedMember(null)
-  }
+    setSelectedTeam(team);
+    setSelectedMember(null);
+  };
 
   const handleMemberSelect = (member) => {
-    setSelectedMember(member)
-  }
+    setSelectedMember(member);
+  };
 
   const handleApproveMilestone = async (jobId, freelancerId, milestoneId) => {
     try {
-      await axios.post(
+      setApprovingMilestoneId(milestoneId);
+      await axios.put(
         `http://localhost:5000/api/jobs/${jobId}/milestones/${milestoneId}/approve`,
         {},
         {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        },
-      )
+        }
+      );
 
       // Refresh the team data
-      const response = await axios.get("http://localhost:5000/api/jobs/client/teams", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-      setTeams(response.data.data)
+      const response = await axios.get(
+        "http://localhost:5000/api/jobs/client/teams",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      setTeams(response.data.data);
 
       // Update the selected team and member
-      const updatedTeam = response.data.data.find((t) => t._id === selectedTeam._id)
-      setSelectedTeam(updatedTeam)
+      const updatedTeam = response.data.data.find(
+        (t) => t._id === selectedTeam._id
+      );
+      setSelectedTeam(updatedTeam);
 
       if (selectedMember) {
-        const updatedMember = updatedTeam.team.find((m) => m._id === selectedMember._id)
-        setSelectedMember(updatedMember)
+        const updatedMember = updatedTeam.team.find(
+          (m) => m._id === selectedMember._id
+        );
+        setSelectedMember(updatedMember);
       }
     } catch (err) {
-      console.error("Error approving milestone:", err)
+      console.error("Error approving milestone:", err);
+    } finally {
+      setApprovingMilestoneId(null);
     }
-  }
+  };
 
   const handleRequestRevision = async (jobId, freelancerId, milestoneId) => {
     try {
@@ -110,43 +125,47 @@ const ClientTeams = () => {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        },
-      )
+        }
+      );
 
       // Refresh the team data
       const response = await axios.get("http://localhost:5000/api/jobs/teams", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
-      })
-      setTeams(response.data.data)
+      });
+      setTeams(response.data.data);
 
       // Update the selected team and member
-      const updatedTeam = response.data.data.find((t) => t._id === selectedTeam._id)
-      setSelectedTeam(updatedTeam)
+      const updatedTeam = response.data.data.find(
+        (t) => t._id === selectedTeam._id
+      );
+      setSelectedTeam(updatedTeam);
 
       if (selectedMember) {
-        const updatedMember = updatedTeam.team.find((m) => m._id === selectedMember._id)
-        setSelectedMember(updatedMember)
+        const updatedMember = updatedTeam.team.find(
+          (m) => m._id === selectedMember._id
+        );
+        setSelectedMember(updatedMember);
       }
     } catch (err) {
-      console.error("Error requesting revision:", err)
+      console.error("Error requesting revision:", err);
     }
-  }
+  };
 
   const NewMilestoneForm = ({ jobId, freelancerId, onClose }) => {
-    const [title, setTitle] = useState("")
-    const [description, setDescription] = useState("")
-    const [amount, setAmount] = useState("")
-    const [deadline, setDeadline] = useState("")
-    const [loading, setLoading] = useState(false)
-    const [error, setError] = useState("")
-    const [success, setSuccess] = useState(false)
+    const [title, setTitle] = useState("");
+    const [description, setDescription] = useState("");
+    const [amount, setAmount] = useState("");
+    const [deadline, setDeadline] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+    const [success, setSuccess] = useState(false);
 
     const handleSubmit = async (e) => {
-      e.preventDefault()
-      setLoading(true)
-      setError("")
+      e.preventDefault();
+      setLoading(true);
+      setError("");
 
       try {
         await axios.post(
@@ -162,37 +181,44 @@ const ClientTeams = () => {
             headers: {
               Authorization: `Bearer ${token}`,
             },
-          },
-        )
+          }
+        );
 
-        setSuccess(true)
+        setSuccess(true);
 
         // Refresh the team data
-        const response = await axios.get("http://localhost:5000/api/jobs/client/teams", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
-        setTeams(response.data.data)
+        const response = await axios.get(
+          "http://localhost:5000/api/jobs/client/teams",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        setTeams(response.data.data);
 
         // Update the selected team and member
-        const updatedTeam = response.data.data.find((t) => t._id === selectedTeam._id)
-        setSelectedTeam(updatedTeam)
+        const updatedTeam = response.data.data.find(
+          (t) => t._id === selectedTeam._id
+        );
+        setSelectedTeam(updatedTeam);
 
         if (selectedMember) {
-          const updatedMember = updatedTeam.team.find((m) => m._id === selectedMember._id)
-          setSelectedMember(updatedMember)
+          const updatedMember = updatedTeam.team.find(
+            (m) => m._id === selectedMember._id
+          );
+          setSelectedMember(updatedMember);
         }
 
         setTimeout(() => {
-          onClose()
-        }, 2000)
+          onClose();
+        }, 2000);
       } catch (err) {
-        setError(err.response?.data?.message || "Failed to create milestone")
+        setError(err.response?.data?.message || "Failed to create milestone");
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
     return (
       <motion.div
@@ -207,12 +233,19 @@ const ClientTeams = () => {
           exit={{ scale: 0.9 }}
           className="bg-[#1c1c24] rounded-lg p-4 sm:p-6 md:p-8 w-full max-w-md mx-auto relative"
         >
-          <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white">
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 text-gray-400 hover:text-white"
+          >
             <X size={20} />
           </button>
 
-          <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">Create New Milestone</h2>
-          <p className="text-gray-400 text-sm mb-6">Add a new milestone for this team member</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">
+            Create New Milestone
+          </h2>
+          <p className="text-gray-400 text-sm mb-6">
+            Add a new milestone for this team member
+          </p>
 
           {success && (
             <div className="bg-green-900/30 border border-green-500 text-green-200 px-4 py-3 rounded mb-4 flex items-center">
@@ -230,7 +263,9 @@ const ClientTeams = () => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Milestone Title</label>
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                Milestone Title
+              </label>
               <input
                 type="text"
                 value={title}
@@ -242,7 +277,9 @@ const ClientTeams = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Description</label>
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                Description
+              </label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -254,7 +291,9 @@ const ClientTeams = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Amount (PKR)</label>
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                Amount (PKR)
+              </label>
               <input
                 type="number"
                 value={amount}
@@ -266,7 +305,9 @@ const ClientTeams = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Deadline</label>
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                Deadline
+              </label>
               <input
                 type="datetime-local"
                 value={deadline}
@@ -281,7 +322,9 @@ const ClientTeams = () => {
                 type="submit"
                 disabled={loading || success}
                 className={`${
-                  loading || success ? "bg-[#9333EA]/50 cursor-not-allowed" : "bg-[#9333EA] hover:bg-[#7928CA]"
+                  loading || success
+                    ? "bg-[#9333EA]/50 cursor-not-allowed"
+                    : "bg-[#9333EA] hover:bg-[#7928CA]"
                 } text-white px-4 py-2 rounded-md text-sm font-medium w-full sm:w-auto flex items-center justify-center`}
               >
                 {loading ? (
@@ -311,17 +354,17 @@ const ClientTeams = () => {
           </form>
         </motion.div>
       </motion.div>
-    )
-  }
+    );
+  };
 
   if (loading)
     return (
       <div className="min-h-screen bg-[#0a0a0f] text-white flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-[#9333EA]"></div>
       </div>
-    )
+    );
 
-  if (error) return <div className="text-red-500 text-center">{error}</div>
+  if (error) return <div className="text-red-500 text-center">{error}</div>;
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white">
@@ -340,7 +383,9 @@ const ClientTeams = () => {
                 <Users className="text-[#9333EA] mr-2" size={24} />
                 <h1 className="text-2xl md:text-3xl font-bold">My Teams</h1>
               </div>
-              <p className="text-gray-400 mt-1">Manage your crowdsourced teams and milestones</p>
+              <p className="text-gray-400 mt-1">
+                Manage your crowdsourced teams and milestones
+              </p>
             </div>
           </div>
         </div>
@@ -356,7 +401,9 @@ const ClientTeams = () => {
           >
             <Users size={48} className="text-[#9333EA] mx-auto mb-4" />
             <h2 className="text-xl font-semibold mb-2">No Teams Yet</h2>
-            <p className="text-gray-400 mb-6">You haven't created any crowdsourced teams yet.</p>
+            <p className="text-gray-400 mb-6">
+              You haven't created any crowdsourced teams yet.
+            </p>
             <Link
               to="/client/post-job"
               className="bg-[#9333EA] text-white px-6 py-3 rounded-md inline-flex items-center hover:bg-[#7928CA] transition duration-300"
@@ -397,7 +444,9 @@ const ClientTeams = () => {
                       </div>
                       <ChevronRight
                         size={18}
-                        className={`text-gray-400 ${selectedTeam?._id === team._id ? "text-[#9333EA]" : ""}`}
+                        className={`text-gray-400 ${
+                          selectedTeam?._id === team._id ? "text-[#9333EA]" : ""
+                        }`}
                       />
                     </div>
                   </motion.div>
@@ -416,7 +465,9 @@ const ClientTeams = () => {
                   <h2 className="text-xl font-semibold mb-4">Team Members</h2>
                   <div className="space-y-3">
                     {selectedTeam.team.length === 0 ? (
-                      <p className="text-gray-400 text-center py-4">No team members yet</p>
+                      <p className="text-gray-400 text-center py-4">
+                        No team members yet
+                      </p>
                     ) : (
                       selectedTeam.team.map((member) => (
                         <motion.div
@@ -442,7 +493,9 @@ const ClientTeams = () => {
                               className="w-10 h-10 rounded-full mr-3"
                             />
                             <div>
-                              <h3 className="font-medium">{member.freelancer.name}</h3>
+                              <h3 className="font-medium">
+                                {member.freelancer.name}
+                              </h3>
                               <div className="flex items-center text-sm text-gray-400 mt-1">
                                 <span className="bg-[#9333EA]/20 text-[#9333EA] px-2 py-0.5 rounded text-xs">
                                   {member.role}
@@ -474,25 +527,47 @@ const ClientTeams = () => {
                     </div>
 
                     <div className="mb-6">
-                      <h3 className="text-md font-medium text-gray-300 mb-2">Active Milestones</h3>
-                      {selectedMember.milestones.filter((m) => m.status === "in-progress").length === 0 ? (
-                        <p className="text-gray-400 text-sm py-2">No active milestones</p>
+                      <h3 className="text-md font-medium text-gray-300 mb-2">
+                        Active Milestones
+                      </h3>
+                      {selectedMember.milestones.filter(
+                        (m) => m.status === "in-progress"
+                      ).length === 0 ? (
+                        <p className="text-gray-400 text-sm py-2">
+                          No active milestones
+                        </p>
                       ) : (
                         <div className="space-y-3">
                           {selectedMember.milestones
                             .filter((m) => m.status === "in-progress")
                             .map((milestone) => (
-                              <div key={milestone._id} className="bg-[#2d2d3a] p-3 rounded-lg">
-                                <h4 className="font-medium">{milestone.title}</h4>
-                                <p className="text-sm text-gray-400 mt-1">{milestone.description}</p>
+                              <div
+                                key={milestone._id}
+                                className="bg-[#2d2d3a] p-3 rounded-lg"
+                              >
+                                <h4 className="font-medium">
+                                  {milestone.title}
+                                </h4>
+                                <p className="text-sm text-gray-400 mt-1">
+                                  {milestone.description}
+                                </p>
                                 <div className="flex flex-wrap gap-x-4 gap-y-2 mt-2">
                                   <div className="flex items-center text-sm">
                                     {/* <DollarSign size={14} className="text-[#9333EA] mr-1" /> */}
-                                    <span>PKR {milestone.amount.toLocaleString()}</span>
+                                    <span>
+                                      PKR {milestone.amount.toLocaleString()}
+                                    </span>
                                   </div>
                                   <div className="flex items-center text-sm">
-                                    <Calendar size={14} className="text-[#9333EA] mr-1" />
-                                    <span>{new Date(milestone.deadline).toLocaleDateString()}</span>
+                                    <Calendar
+                                      size={14}
+                                      className="text-[#9333EA] mr-1"
+                                    />
+                                    <span>
+                                      {new Date(
+                                        milestone.deadline
+                                      ).toLocaleDateString()}
+                                    </span>
                                   </div>
                                   <div className="flex items-center text-sm">
                                     <div className="bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-full text-xs">
@@ -507,25 +582,47 @@ const ClientTeams = () => {
                     </div>
 
                     <div className="mb-6">
-                      <h3 className="text-md font-medium text-gray-300 mb-2">Submitted Milestones</h3>
-                      {selectedMember.milestones.filter((m) => m.status === "submitted").length === 0 ? (
-                        <p className="text-gray-400 text-sm py-2">No submitted milestones</p>
+                      <h3 className="text-md font-medium text-gray-300 mb-2">
+                        Submitted Milestones
+                      </h3>
+                      {selectedMember.milestones.filter(
+                        (m) => m.status === "submitted"
+                      ).length === 0 ? (
+                        <p className="text-gray-400 text-sm py-2">
+                          No submitted milestones
+                        </p>
                       ) : (
                         <div className="space-y-3">
                           {selectedMember.milestones
                             .filter((m) => m.status === "submitted")
                             .map((milestone) => (
-                              <div key={milestone._id} className="bg-[#2d2d3a] p-3 rounded-lg">
-                                <h4 className="font-medium">{milestone.title}</h4>
-                                <p className="text-sm text-gray-400 mt-1">{milestone.description}</p>
+                              <div
+                                key={milestone._id}
+                                className="bg-[#2d2d3a] p-3 rounded-lg"
+                              >
+                                <h4 className="font-medium">
+                                  {milestone.title}
+                                </h4>
+                                <p className="text-sm text-gray-400 mt-1">
+                                  {milestone.description}
+                                </p>
                                 <div className="flex flex-wrap gap-x-4 gap-y-2 mt-2">
                                   <div className="flex items-center text-sm">
                                     {/* <DollarSign size={14} className="text-[#9333EA] mr-1" /> */}
-                                    <span>PKR {milestone.amount.toLocaleString()}</span>
+                                    <span>
+                                      PKR {milestone.amount.toLocaleString()}
+                                    </span>
                                   </div>
                                   <div className="flex items-center text-sm">
-                                    <Calendar size={14} className="text-[#9333EA] mr-1" />
-                                    <span>{new Date(milestone.deadline).toLocaleDateString()}</span>
+                                    <Calendar
+                                      size={14}
+                                      className="text-[#9333EA] mr-1"
+                                    />
+                                    <span>
+                                      {new Date(
+                                        milestone.deadline
+                                      ).toLocaleDateString()}
+                                    </span>
                                   </div>
                                   <div className="flex items-center text-sm">
                                     <div className="bg-yellow-500/20 text-yellow-300 px-2 py-0.5 rounded-full text-xs">
@@ -537,33 +634,47 @@ const ClientTeams = () => {
                                 {milestone.submission && (
                                   <div className="mt-3 p-3 bg-[#1c1c24] rounded-lg">
                                     <div className="flex justify-between items-center mb-2">
-                                      <h5 className="text-sm font-medium text-white">Submission Details</h5>
+                                      <h5 className="text-sm font-medium text-white">
+                                        Submission Details
+                                      </h5>
                                       <span className="text-xs text-gray-400">
-                                        {new Date(milestone.submission.submittedAt).toLocaleString()}
+                                        {new Date(
+                                          milestone.submission.submittedAt
+                                        ).toLocaleString()}
                                       </span>
                                     </div>
 
                                     {milestone.submission.message && (
-                                      <p className="text-sm text-gray-300 mb-2">{milestone.submission.message}</p>
+                                      <p className="text-sm text-gray-300 mb-2">
+                                        {milestone.submission.message}
+                                      </p>
                                     )}
 
                                     {milestone.submission.attachments &&
-                                      milestone.submission.attachments.length > 0 && (
+                                      milestone.submission.attachments.length >
+                                        0 && (
                                         <div className="space-y-2">
-                                          <p className="text-xs text-gray-400">Attachments:</p>
+                                          <p className="text-xs text-gray-400">
+                                            Attachments:
+                                          </p>
                                           <div className="flex flex-wrap gap-2">
-                                            {milestone.submission.attachments.map((attachment) => (
-                                              <a
-                                                key={attachment._id}
-                                                href={attachment.url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="bg-[#2d2d3a] text-[#9333EA] px-3 py-1 rounded-md text-xs hover:bg-[#3d3d4a] transition-colors flex items-center"
-                                              >
-                                                <Download size={12} className="mr-1" />
-                                                View Attachment
-                                              </a>
-                                            ))}
+                                            {milestone.submission.attachments.map(
+                                              (attachment) => (
+                                                <a
+                                                  key={attachment._id}
+                                                  href={attachment.url}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="bg-[#2d2d3a] text-[#9333EA] px-3 py-1 rounded-md text-xs hover:bg-[#3d3d4a] transition-colors flex items-center"
+                                                >
+                                                  <Download
+                                                    size={12}
+                                                    className="mr-1"
+                                                  />
+                                                  View Attachment
+                                                </a>
+                                              )
+                                            )}
                                           </div>
                                         </div>
                                       )}
@@ -574,12 +685,15 @@ const ClientTeams = () => {
                                           handleRequestRevision(
                                             selectedTeam._id,
                                             selectedMember.freelancer._id,
-                                            milestone._id,
+                                            milestone._id
                                           )
                                         }
                                         className="bg-yellow-600 text-white px-3 py-1 rounded-md text-sm hover:bg-yellow-700 transition-colors flex items-center"
                                       >
-                                        <AlertCircle size={14} className="mr-1" />
+                                        <AlertCircle
+                                          size={14}
+                                          className="mr-1"
+                                        />
                                         Request Revision
                                       </button>
                                       <button
@@ -587,13 +701,33 @@ const ClientTeams = () => {
                                           handleApproveMilestone(
                                             selectedTeam._id,
                                             selectedMember.freelancer._id,
-                                            milestone._id,
+                                            milestone._id
                                           )
                                         }
-                                        className="bg-green-600 text-white px-3 py-1 rounded-md text-sm hover:bg-green-700 transition-colors flex items-center"
+                                        disabled={
+                                          approvingMilestoneId === milestone._id
+                                        }
+                                        className={`bg-green-600 text-white px-3 py-1 rounded-md text-sm hover:bg-green-700 transition-colors flex items-center ${
+                                          approvingMilestoneId === milestone._id
+                                            ? "opacity-50 cursor-not-allowed"
+                                            : ""
+                                        }`}
                                       >
-                                        <CheckSquare size={14} className="mr-1" />
-                                        Approve
+                                        {approvingMilestoneId ===
+                                        milestone._id ? (
+                                          <>
+                                            <span className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></span>
+                                            Approving...
+                                          </>
+                                        ) : (
+                                          <>
+                                            <CheckSquare
+                                              size={14}
+                                              className="mr-1"
+                                            />
+                                            Approve
+                                          </>
+                                        )}
                                       </button>
                                     </div>
                                   </div>
@@ -605,9 +739,15 @@ const ClientTeams = () => {
                     </div>
 
                     <div>
-                      <h3 className="text-md font-medium text-gray-300 mb-2">Completed Milestones</h3>
-                      {selectedMember.milestones.filter((m) => m.status === "approved").length === 0 ? (
-                        <p className="text-gray-400 text-sm py-2">No completed milestones</p>
+                      <h3 className="text-md font-medium text-gray-300 mb-2">
+                        Completed Milestones
+                      </h3>
+                      {selectedMember.milestones.filter(
+                        (m) => m.status === "approved"
+                      ).length === 0 ? (
+                        <p className="text-gray-400 text-sm py-2">
+                          No completed milestones
+                        </p>
                       ) : (
                         <div className="space-y-3">
                           {selectedMember.milestones
@@ -617,35 +757,52 @@ const ClientTeams = () => {
                                 key={milestone._id}
                                 className="bg-[#2d2d3a] p-3 rounded-lg border-l-4 border-green-500"
                               >
-                                <h4 className="font-medium">{milestone.title}</h4>
-                                <p className="text-sm text-gray-400 mt-1">{milestone.description}</p>
+                                <h4 className="font-medium">
+                                  {milestone.title}
+                                </h4>
+                                <p className="text-sm text-gray-400 mt-1">
+                                  {milestone.description}
+                                </p>
                                 <div className="flex flex-wrap gap-x-4 gap-y-2 mt-2">
                                   <div className="flex items-center text-sm">
                                     {/* <DollarSign size={14} className="text-[#9333EA] mr-1" /> */}
-                                    <span>PKR {milestone.amount.toLocaleString()}</span>
+                                    <span>
+                                      PKR {milestone.amount.toLocaleString()}
+                                    </span>
                                   </div>
                                   <div className="flex items-center text-sm">
-                                    <CheckCircle size={14} className="text-green-500 mr-1" />
-                                    <span className="text-green-400">Completed</span>
+                                    <CheckCircle
+                                      size={14}
+                                      className="text-green-500 mr-1"
+                                    />
+                                    <span className="text-green-400">
+                                      Completed
+                                    </span>
                                   </div>
                                 </div>
                                 {milestone.submission &&
                                   milestone.submission.attachments &&
-                                  milestone.submission.attachments.length > 0 && (
+                                  milestone.submission.attachments.length >
+                                    0 && (
                                     <div className="mt-2">
                                       <div className="flex flex-wrap gap-2">
-                                        {milestone.submission.attachments.map((attachment) => (
-                                          <a
-                                            key={attachment._id}
-                                            href={attachment.url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-[#9333EA] text-sm hover:underline flex items-center"
-                                          >
-                                            <Download size={14} className="mr-1" />
-                                            View Deliverable
-                                          </a>
-                                        ))}
+                                        {milestone.submission.attachments.map(
+                                          (attachment) => (
+                                            <a
+                                              key={attachment._id}
+                                              href={attachment.url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="text-[#9333EA] text-sm hover:underline flex items-center"
+                                            >
+                                              <Download
+                                                size={14}
+                                                className="mr-1"
+                                              />
+                                              View Deliverable
+                                            </a>
+                                          )
+                                        )}
                                       </div>
                                     </div>
                                   )}
@@ -699,7 +856,7 @@ const ClientTeams = () => {
         )}
       </AnimatePresence>
     </div>
-  )
-}
+  );
+};
 
-export default ClientTeams
+export default ClientTeams;

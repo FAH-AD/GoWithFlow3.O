@@ -63,10 +63,11 @@ router.get('/freelancer/status', protect, getActiveAndCompletedJobs);
 router.put('/:id/enable-crowdsourcing', protect, enableCrowdsourcing);
 router.post('/:id/team/:bidId', protect, addTeamMember);
 router.delete('/:id/team/:memberId', protect, removeTeamMember);
+router.post('/:id/milestones', protect, isClient, addMilestone);
 router.post('/:id/team/:memberId/milestones', protect, addMilestone);
 
 // New routes
-router.post('/:id/milestones', protect, isClient, addMilestone);
+
 router.put('/:id/milestones/:milestoneId/approve', protect, approveMilestone);
 router.get('/:id/milestones', protect, getJobMilestones); // Added new route
 

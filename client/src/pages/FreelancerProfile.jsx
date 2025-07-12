@@ -33,7 +33,7 @@ const FreelancerProfile = () => {
     const navigate = useNavigate()
     const { userId } = useParams()
     const currentUser = useSelector((state) => state.Auth?.user)
-
+    const [isUploading, setIsUploading] = useState(false);
     const [profileData, setProfileData] = useState(null)
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState(null)
@@ -130,40 +130,50 @@ const FreelancerProfile = () => {
 
     // Handle profile image change
     // Handle profile image change
-    const handleImageChange = async (file) => {
-        try {
-            // Upload the file
-            const uploadResult = await uploadFile(file)
+    
+const handleImageChange = async (file) => {
+    setIsUploading(true);
+    setError(null);
 
-            // Update the form data with the uploaded file URL
-            setFormData((prev) => ({
-                ...prev,
-                profilePic: uploadResult,
-            }))
+    try {
+        // Upload the file
+        const uploadResult = await uploadFile(file);
 
-            console.log(formData, "form data")
-            // Update the profile data for immediate preview
-            setProfileData((prev) => ({
-                ...prev,
-                profilePic: uploadResult,
-            }))
-            console.log(uploadResult, "upload result")
-        } catch (error) {
-            console.error("Error uploading file:", error)
-            setError("Failed to upload profile picture. Please try again.")
+        // Update the form data with the uploaded file URL
+        setFormData((prev) => ({
+            ...prev,
+            profilePic: uploadResult,
+        }));
+
+        // Update the profile data for immediate preview
+        setProfileData((prev) => ({
+            ...prev,
+            profilePic: uploadResult,
+        }));
+    } catch (error) {
+        console.error("Error uploading file:", error);
+        
+        // Check for the specific file size error
+        if (error.message === "File size too large. Got 10822574. Maximum is 10485760.") {
+            const maxSizeMB = (10485760 / (1024 * 1024)).toFixed(2);
+            setError(`File size too large. Maximum allowed size is ${maxSizeMB} MB. Please choose a smaller file.`);
+        } else {
+            setError(`Error uploading file.please try again`);
         }
-
-        // Preview the selected image (as a fallback)
-        const reader = new FileReader()
-        reader.onloadend = () => {
-            setProfileData((prev) => ({
-                ...prev,
-                profilePic: reader.result,
-            }))
-        }
-        reader.readAsDataURL(file)
+    } finally {
+        setIsUploading(false);
     }
 
+    // Preview the selected image (as a fallback)
+    const reader = new FileReader();
+    reader.onloadend = () => {
+        setProfileData((prev) => ({
+            ...prev,
+            profilePic: reader.result,
+        }));
+    };
+    reader.readAsDataURL(file);
+};
     // Handle edit mode toggle
     const handleEdit = () => {
         setIsEditing(true)
@@ -500,6 +510,7 @@ const FreelancerProfile = () => {
                 onEdit={handleEdit}
                 onSave={handleSave}
                 onCancel={handleCancel}
+                 isUploading={isUploading}
                 isOwnProfile={isOwnProfile}
                 onImageChange={handleImageChange}
             />

@@ -64,11 +64,9 @@ const ClientJobDetails = () => {
           Authorization: `Bearer ${token}`,
         },
       })
-      console.log("Job details response:", response.data)
       setJob(response.data.data)
 
       // Fetch freelancer profile if job has an assigned freelancer
-      console.log("Fetching freelancer profile for:", response.data.data.hiredFreelancer)
      
         await fetchFreelancerProfile(response.data.data.hiredFreelancer)
       
@@ -93,7 +91,6 @@ const ClientJobDetails = () => {
       if (response.ok) {
         const profileData = await response.json()
         setFreelancerProfile(profileData.data.user)
-              console.log("Freelancer profile data:", profileData.data)
       }
 
     } catch (err) {
@@ -161,15 +158,22 @@ const ClientJobDetails = () => {
     const [success, setSuccess] = useState(false)
 
     const handleSubmit = async (e) => {
-      e.preventDefault()
+     
+       e.preventDefault()
       setLoading(true)
-      setError("")
+      // setError("")
 
       try {
+        console.log("Submitting new milestone:", { title, description, amount, deadline,jobId })
+        if (!title || !description || !amount || !deadline) {
+          setError("All fields are required")
+          return
+        }
         await axios.post(
-          `http://localhost:5000/api/freelancer/jobs/${jobId}/milestones`,
+          `http://localhost:5000/api/jobs/${jobId}/milestones`,
           {
-            freelancerId: job.assignedFreelancer._id,
+            freelancerId: job.hiredFreelancer,
+ 
             title,
             description,
             amount: Number.parseFloat(amount),
@@ -189,6 +193,7 @@ const ClientJobDetails = () => {
           onClose()
         }, 2000)
       } catch (err) {
+         console.log("Submitting new milestone:")
         setError(err.response?.data?.message || "Failed to create milestone")
       } finally {
         setLoading(false)
@@ -229,7 +234,7 @@ const ClientJobDetails = () => {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form  className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">Milestone Title</label>
               <input
@@ -279,8 +284,10 @@ const ClientJobDetails = () => {
 
             <div className="flex flex-col sm:flex-row justify-between gap-3 sm:gap-4 mt-6">
               <button
-                type="submit"
+              
+
                 disabled={loading || success}
+                onClick={handleSubmit}
                 className={`${
                   loading || success ? "bg-[#9333EA]/50 cursor-not-allowed" : "bg-[#9333EA] hover:bg-[#7928CA]"
                 } text-white px-4 py-2 rounded-md text-sm font-medium w-full sm:w-auto flex items-center justify-center`}
@@ -344,7 +351,7 @@ const ClientJobDetails = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white">
+    <div className="min-h-screen bg-[#0a0a0f] pb-[39px] text-white">
       <Navbar />
 
       <motion.div

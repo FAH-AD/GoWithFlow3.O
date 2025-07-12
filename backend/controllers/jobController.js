@@ -941,7 +941,7 @@ export const approveMilestone = async (req, res) => {
       } catch (error) {
         console.error('Error in scheduled payment update:', error);
       }
-    }, 3 * 24 * 60 * 60 * 1000); // 3 days in milliseconds
+    }, 10 * 60 * 1000); // 3 days in milliseconds
 
     // Send email notification to freelancer
     await sendEmail({
