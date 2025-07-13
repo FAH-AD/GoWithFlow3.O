@@ -1,9 +1,8 @@
+"use client";
 
-"use client"
-
-import { useState, useEffect } from "react"
-import { useSelector } from "react-redux"
-import { useNavigate } from "react-router-dom"
+import { useState, useEffect } from "react";
+import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import {
   Briefcase,
   Clock,
@@ -14,46 +13,54 @@ import {
   Search,
   Filter,
   ArrowUpRight,
-} from "lucide-react"
-import Navbar from "../components/Navbar"
-import axios from "axios"
+} from "lucide-react";
+import Navbar from "../components/Navbar";
+import axios from "axios";
 
 const FreelancerJobs = () => {
-  const navigate = useNavigate()
-  const user = useSelector((state) => state.Auth.user)
+  const navigate = useNavigate();
+  const user = useSelector((state) => state.Auth.user);
 
- const [acceptedProposals, setAcceptedProposals] = useState([]);
-const [inProgressProposals, setInProgressProposals] = useState([]);
-const [completedProposals, setCompletedProposals] = useState([]);
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [sortOption, setSortOption] = useState("newest")
-  const [activeTab, setActiveTab] = useState("inProgress")
-  const token = localStorage.getItem("authToken")
+  const [acceptedProposals, setAcceptedProposals] = useState([]);
+  const [inProgressProposals, setInProgressProposals] = useState([]);
+  const [completedProposals, setCompletedProposals] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortOption, setSortOption] = useState("newest");
+  const [activeTab, setActiveTab] = useState("inProgress");
+  const token = localStorage.getItem("authToken");
 
   useEffect(() => {
     if (!user) {
       navigate("/login", {
-        state: { from: "/freelancer/my-proposals", message: "Please login to view your accepted proposals" },
-      })
+        state: {
+          from: "/freelancer/my-proposals",
+          message: "Please login to view your accepted proposals",
+        },
+      });
     } else if (user.role !== "freelancer") {
-      navigate("/", { state: { message: "Only freelancers can access this page" } })
+      navigate("/", {
+        state: { message: "Only freelancers can access this page" },
+      });
     } else {
-     fetchAndProcessProposals()
+      fetchAndProcessProposals();
     }
-  }, [user, navigate])
- const fetchAndProcessProposals = async () => {
+  }, [user, navigate]);
+  const fetchAndProcessProposals = async () => {
     if (user && user.role === "freelancer") {
       setIsLoading(true);
       setError(null);
 
       try {
-        const response = await axios.get("http://localhost:5000/api/jobs/user/active-jobs", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const response = await axios.get(
+          "http://localhost:5000/api/jobs/user/active-jobs",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
         console.log("Raw jobs data:", response.data);
 
         const jobs = response.data.message.data;
@@ -68,76 +75,78 @@ const [completedProposals, setCompletedProposals] = useState([]);
         setInProgressProposals(inProgress);
         setCompletedProposals(completed);
       } catch (err) {
-        setError(err.response?.data?.message || err.message || "Failed to load accepted proposals. Please try again.");
+        setError(
+          err.response?.data?.message ||
+            err.message ||
+            "Failed to load accepted proposals. Please try again."
+        );
       } finally {
         setIsLoading(false);
       }
     }
   };
   useEffect(() => {
- 
+    fetchAndProcessProposals();
+  }, [user, token]);
 
-  fetchAndProcessProposals();
-}, [user, token]);
-
- const filterProposalsByStatus = (proposals, status) => {
-  console.log("Filtering proposals:", proposals);
-  return proposals.filter(proposal => {
-    console.log("Proposal:", proposal.title, "Status:", proposal.status);
-    return status === "inProgress" ? proposal.status === "in-progress" : proposal.status === "completed";
-  });
-};
-  const filteredProposals = acceptedProposals.filter(proposal => 
+  const filterProposalsByStatus = (proposals, status) => {
+    console.log("Filtering proposals:", proposals);
+    return proposals.filter((proposal) => {
+      console.log("Proposal:", proposal.title, "Status:", proposal.status);
+      return status === "inProgress"
+        ? proposal.status === "in-progress"
+        : proposal.status === "completed";
+    });
+  };
+  const filteredProposals = acceptedProposals.filter((proposal) =>
     proposal.title?.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  );
 
- 
-
-  const currentProposals = activeTab === "inProgress" ? inProgressProposals : completedProposals
-
+  const currentProposals =
+    activeTab === "inProgress" ? inProgressProposals : completedProposals;
 
   const handleSearch = (e) => {
-    setSearchQuery(e.target.value)
-  }
+    setSearchQuery(e.target.value);
+  };
 
   const handleSort = (option) => {
-    setSortOption(option)
-    const sorted = [...acceptedProposals]
+    setSortOption(option);
+    const sorted = [...acceptedProposals];
     switch (option) {
       case "newest":
-        sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-        break
+        sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        break;
       case "oldest":
-        sorted.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
-        break
+        sorted.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+        break;
       case "highest":
-        sorted.sort((a, b) => b.budget - a.budget)
-        break
+        sorted.sort((a, b) => b.budget - a.budget);
+        break;
       case "lowest":
-        sorted.sort((a, b) => a.budget - b.budget)
-        break
+        sorted.sort((a, b) => a.budget - b.budget);
+        break;
       default:
-        break
+        break;
     }
-    setAcceptedProposals(sorted)
-  }
+    setAcceptedProposals(sorted);
+  };
 
- const viewJobDetails = (job) => {
-    console.log("Navigating to job details:", job)
-  if (job.isCrowdsourced) {
-    navigate(`/freelancer/my-teams/${job._id}`);
-  } else {
-    navigate(`/freelancer/jobs/${job._id}`);
-  }
-}
+  const viewJobDetails = (job) => {
+    console.log("Navigating to job details:", job);
+    if (job.isCrowdsourced) {
+      navigate(`/freelancer/my-teams/${job._id}`);
+    } else {
+      navigate(`/freelancer/jobs/${job._id}`);
+    }
+  };
   const formatDate = (dateString) => {
-    const date = new Date(dateString)
+    const date = new Date(dateString);
     return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
-    })
-  }
+    });
+  };
 
   if (isLoading) {
     return (
@@ -150,9 +159,8 @@ const [completedProposals, setCompletedProposals] = useState([]);
           </div>
         </div>
       </div>
-    )
+    );
   }
-
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white">
@@ -177,7 +185,10 @@ const [completedProposals, setCompletedProposals] = useState([]);
           <div className="p-4 md:p-6">
             <div className="flex flex-col sm:flex-row gap-2 justify-between">
               <div className="relative">
-                <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <Search
+                  size={18}
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                />
                 <input
                   type="text"
                   placeholder="Search jobs..."
@@ -188,7 +199,10 @@ const [completedProposals, setCompletedProposals] = useState([]);
               </div>
 
               <div className="relative">
-                <Filter size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <Filter
+                  size={18}
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                />
                 <select
                   value={sortOption}
                   onChange={(e) => handleSort(e.target.value)}
@@ -228,7 +242,6 @@ const [completedProposals, setCompletedProposals] = useState([]);
             </button>
           </div>
         </div>
-
 
         <div className="space-y-4">
           {currentProposals.length === 0 ? (
@@ -274,47 +287,68 @@ const [completedProposals, setCompletedProposals] = useState([]);
                         </span>
                       </div>
                     </div>
-
-                   
                   </div>
 
                   <div className="mt-4">
-                    <h4 className="text-sm font-medium text-gray-300 mb-2">Milestones</h4>
+                    <h4 className="text-sm font-medium text-gray-300 mb-2">
+                      Milestones
+                    </h4>
                     <div className="space-y-2">
-          {proposal.isCrowdsourced
-            ? proposal.team[0].milestones?.map((milestone, index) => (
-                <div key={index} className="flex justify-between items-center bg-[#1e1e2d] p-3 rounded-md">
-                  <div>
-                    <p className="font-medium">{milestone.title}</p>
-                    <p className="text-sm text-gray-400 truncate max-w-md">{milestone.description}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium">PKR {milestone.amount.toLocaleString()}</p>
-                    <p className="text-sm text-gray-400">Due: {formatDate(milestone.deadline)}</p>
-                  </div>
-                </div>
-              ))
-            : proposal.milestones.map((milestone, index) => (
-                <div key={index} className="flex justify-between items-center bg-[#1e1e2d] p-3 rounded-md">
-                  <div>
-                    <p className="font-medium">{milestone.title}</p>
-                    <p className="text-sm text-gray-400 truncate max-w-md">{milestone.description}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium">PKR {milestone.amount.toLocaleString()}</p>
-                    <p className="text-sm text-gray-400">Due: {formatDate(milestone.deadline)}</p>
-                  </div>
-                </div>
-              ))}
-        </div>
+                      {proposal.isCrowdsourced
+                        ? proposal.team
+                            .find((member) => member.freelancer === user._id)
+                            ?.milestones?.map((milestone, index) => (
+                              <div
+                                key={index}
+                                className="flex justify-between items-center bg-[#1e1e2d] p-3 rounded-md"
+                              >
+                                <div>
+                                  <p className="font-medium">
+                                    {milestone.title}
+                                  </p>
+                                  <p className="text-sm text-gray-400 truncate max-w-md">
+                                    {milestone.description}
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-medium">
+                                    PKR {milestone.amount.toLocaleString()}
+                                  </p>
+                                  <p className="text-sm text-gray-400">
+                                    Due: {formatDate(milestone.deadline)}
+                                  </p>
+                                </div>
+                              </div>
+                            ))
+                        : proposal.milestones.map((milestone, index) => (
+                            <div
+                              key={index}
+                              className="flex justify-between items-center bg-[#1e1e2d] p-3 rounded-md"
+                            >
+                              <div>
+                                <p className="font-medium">{milestone.title}</p>
+                                <p className="text-sm text-gray-400 truncate max-w-md">
+                                  {milestone.description}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-medium">
+                                  PKR {milestone.amount.toLocaleString()}
+                                </p>
+                                <p className="text-sm text-gray-400">
+                                  Due: {formatDate(milestone.deadline)}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                    </div>
                   </div>
 
                   <div className="mt-4 flex justify-end">
-                    
                     <button
                       onClick={(e) => {
-                        e.stopPropagation()
-                        viewJobDetails(proposal)
+                        e.stopPropagation();
+                        viewJobDetails(proposal);
                       }}
                       className="flex items-center text-[#9333EA] hover:text-[#a855f7] transition-colors"
                     >
@@ -329,7 +363,7 @@ const [completedProposals, setCompletedProposals] = useState([]);
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default FreelancerJobs
+export default FreelancerJobs;

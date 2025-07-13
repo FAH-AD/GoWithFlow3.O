@@ -111,7 +111,7 @@ const ClientJobs = () => {
 
   const JobCard = ({ job }) => {
     const getJobRoute = (job) => {
-    if (job.isCrowdsourced) {
+    if (job.isCrowdsourced && job.status === 'in-progress') {
       return `/client/my-teams/${job._id}`;
     } else if (job.status === 'open') {
       return `/client/jobs/${job._id}`;

@@ -8,7 +8,7 @@ const milestoneSchema = new mongoose.Schema({
   deadline: Date,
   status: {
     type: String,
-    enum: ['pending', 'in-progress', 'submitted', 'approved', 'rejected'],
+    enum: ['pending', 'in-progress', 'in-revision','submitted', 'approved', 'rejected'],
     default: 'pending'
   },
   approvalDate: Date

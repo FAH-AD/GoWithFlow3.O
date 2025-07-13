@@ -957,6 +957,75 @@ export const approveMilestone = async (req, res) => {
   }
 };
 
+export const requestRevision = async (req, res) => {
+  try {
+    const { id, milestoneId } = req.params;
+    const { revisionDetails, attachments } = req.body;
+
+    const job = await Job.findById(id).populate('hiredFreelancer');
+    if (!job) return customErrorHandler(res, new Error('Job not found'), 404);
+
+    if (job.client.toString() !== req.user._id.toString()) {
+      return customErrorHandler(res, new Error('Unauthorized: You can only request revisions for your own jobs'), 403);
+    }
+
+    let milestone;
+    let freelancer;
+
+    if (job.isCrowdsourced) {
+      const teamMember = job.team.find(member => 
+        member.milestones.some(m => m._id.toString() === milestoneId)
+      );
+      if (!teamMember) return customErrorHandler(res, new Error('Milestone not found'), 404);
+      milestone = teamMember.milestones.id(milestoneId);
+      freelancer = await User.findById(teamMember.freelancer);
+    } else {
+      milestone = job.milestones.id(milestoneId);
+      freelancer = job.hiredFreelancer;
+    }
+
+    if (!milestone) return customErrorHandler(res, new Error('Milestone not found'), 404);
+
+    if (milestone.status !== 'submitted') {
+      return customErrorHandler(res, new Error('Can only request revision for submitted milestones'), 400);
+    }
+
+    // Create or update the revision object
+    milestone.revision = {
+      details: revisionDetails,
+      attachments: attachments,
+      requestedAt: new Date(),
+      status: 'pending'
+    };
+
+    milestone.status = 'in-revision';
+    await job.save();
+
+    // Send notification to freelancer
+    await Notification.create({
+      recipient: freelancer._id,
+      type: 'revision-requested',
+      title: 'Revision Requested',
+      message: `A revision has been requested for the milestone "${milestone.title}" in job "${job.title}".`,
+      data: {
+        job: job._id,
+        milestone: milestone._id,
+      },
+    });
+
+    // Send email notification to freelancer
+    await sendEmail({
+      to: freelancer.email,
+      subject: 'Revision Requested',
+      text: `A revision has been requested for the milestone "${milestone.title}" in job "${job.title}". Please check your dashboard for details.`
+    });
+
+    return successResponse(res, 200, 'Revision requested successfully', { milestone });
+  } catch (error) {
+    console.error('Error in requestRevision:', error);
+    return customErrorHandler(res, error);
+  }
+};
 
 export const getAllClientJobs = async (req, res, next) => {
   try {

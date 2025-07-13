@@ -24,6 +24,7 @@ import {
   searchJobs,
   getClientCrowdsourcedJobs,
   getFreelancerCrowdsourcedJobs,
+  requestRevision
   
 } 
 from '../controllers/jobController.js';
@@ -55,6 +56,7 @@ router.put('/:id/complete', protect, completeJob);
 router.put('/:id/cancel', protect, isClientOrAdmin, cancelJob);
 router.get('/user/active-jobs', protect, getActiveAndCompletedJobs);
 router.put('/:jobId/freelancer/:freelancerId/milestone/:milestoneId/approve', protect, isClient, approveMilestone);
+router.post('/jobs/:id/milestones/:milestoneId/request-revision', protect,isClient, requestRevision);
 
 // Freelancer routes
 router.get('/freelancer/status', protect, getActiveAndCompletedJobs);
