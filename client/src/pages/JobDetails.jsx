@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
+import { ReviewsList } from '../components/ReviewsList';
+import { reviewService } from '../services/reviewService';
 
 const JobDetails = () => {
   const { id } = useParams();
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [reviews, setReviews] = useState(null);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
 
   useEffect(() => {
     const fetchJob = async () => {
@@ -13,6 +17,11 @@ const JobDetails = () => {
         const { data } = await axios.get(`http://localhost:5000/api/jobs/${id}`);
        console.log(data, "data in job details");
         setJob({ ...data.job});
+        
+        // Fetch reviews if job is completed
+        if (data.job.status === 'completed') {
+          fetchJobReviews();
+        }
       } catch (err) {
         console.error('Error fetching job details:', err);
       } finally {
@@ -21,6 +30,19 @@ const JobDetails = () => {
     };
     fetchJob();
   }, [id]);
+
+  const fetchJobReviews = async () => {
+    setReviewsLoading(true);
+    try {
+      const reviewsData = await reviewService.getJobReviews(id);
+      console.log('Job reviews data received:', reviewsData);
+      setReviews(reviewsData);
+    } catch (error) {
+      console.error('Error fetching job reviews:', error);
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -72,6 +94,39 @@ const JobDetails = () => {
           Apply Now
         </button>
       </div>
+
+      {/* Reviews Section - Show only if job is completed */}
+      {job.status === 'completed' && (
+        <div className="mt-8 bg-white rounded-lg p-6 shadow-xl">
+          <h3 className="text-xl font-bold text-gray-800 mb-6">Project Reviews</h3>
+          
+          {reviewsLoading ? (
+            <div className="flex justify-center items-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+            </div>
+          ) : reviews && (reviews.clientReview || reviews.freelancerReview) ? (
+            <div className="space-y-6">
+              {reviews.clientReview && (
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-700 mb-3">Client's Review</h4>
+                  <ReviewsList reviews={[reviews.clientReview]} />
+                </div>
+              )}
+              
+              {reviews.freelancerReview && (
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-700 mb-3">Freelancer's Review</h4>
+                  <ReviewsList reviews={[reviews.freelancerReview]} />
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-gray-500">No reviews available for this project yet.</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

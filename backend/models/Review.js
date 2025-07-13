@@ -121,6 +121,17 @@ const reviewSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    reportReason: {
+      type: String,
+      trim: true,
+    },
+    reportedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    reportedAt: {
+      type: Date,
+    },
     // For admin moderation
     isHidden: {
       type: Boolean,
@@ -144,12 +155,16 @@ reviewSchema.index({ rating: 1 });
 reviewSchema.index({ type: 1 });
 reviewSchema.index({ createdAt: -1 });
 
+// Unique compound index to prevent duplicate reviews
+// One review per job per reviewer-recipient pair
+reviewSchema.index({ job: 1, reviewer: 1, recipient: 1 }, { unique: true });
+
 // Static method: Get average rating for a user
 reviewSchema.statics.getAverageRating = async function (userId) {
   try {
     const result = await this.aggregate([
       {
-        $match: { recipient: mongoose.Types.ObjectId(userId) },
+        $match: { recipient: new mongoose.Types.ObjectId(userId) },
       },
       {
         $group: {
@@ -169,6 +184,102 @@ reviewSchema.statics.getAverageRating = async function (userId) {
   } catch (error) {
     console.error('Error calculating average rating:', error);
     return { averageRating: 0, totalReviews: 0 };
+  }
+};
+
+// Static method: Get review statistics for a user
+reviewSchema.statics.getReviewStats = async function (userId) {
+  try {
+    const result = await this.aggregate([
+      {
+        $match: { recipient: new mongoose.Types.ObjectId(userId) },
+      },
+      {
+        $group: {
+          _id: '$recipient',
+          averageRating: { $avg: '$rating' },
+          totalReviews: { $sum: 1 },
+          avgCommunication: { $avg: '$communication' },
+          avgQualityOfWork: { $avg: '$qualityOfWork' },
+          avgValueForMoney: { $avg: '$valueForMoney' },
+          avgExpertise: { $avg: '$expertise' },
+          avgProfessionalism: { $avg: '$professionalism' },
+          fiveStarCount: {
+            $sum: { $cond: [{ $eq: ['$rating', 5] }, 1, 0] },
+          },
+          fourStarCount: {
+            $sum: { $cond: [{ $eq: ['$rating', 4] }, 1, 0] },
+          },
+          threeStarCount: {
+            $sum: { $cond: [{ $eq: ['$rating', 3] }, 1, 0] },
+          },
+          twoStarCount: {
+            $sum: { $cond: [{ $eq: ['$rating', 2] }, 1, 0] },
+          },
+          oneStarCount: {
+            $sum: { $cond: [{ $eq: ['$rating', 1] }, 1, 0] },
+          },
+        },
+      },
+    ]);
+
+    return result.length > 0
+      ? {
+          averageRating: Math.round(result[0].averageRating * 10) / 10,
+          totalReviews: result[0].totalReviews,
+          categoryAverages: {
+            communication: Math.round((result[0].avgCommunication || 0) * 10) / 10,
+            qualityOfWork: Math.round((result[0].avgQualityOfWork || 0) * 10) / 10,
+            valueForMoney: Math.round((result[0].avgValueForMoney || 0) * 10) / 10,
+            expertise: Math.round((result[0].avgExpertise || 0) * 10) / 10,
+            professionalism: Math.round((result[0].avgProfessionalism || 0) * 10) / 10,
+          },
+          ratingDistribution: {
+            fiveStar: result[0].fiveStarCount,
+            fourStar: result[0].fourStarCount,
+            threeStar: result[0].threeStarCount,
+            twoStar: result[0].twoStarCount,
+            oneStar: result[0].oneStarCount,
+          },
+        }
+      : {
+          averageRating: 0,
+          totalReviews: 0,
+          categoryAverages: {
+            communication: 0,
+            qualityOfWork: 0,
+            valueForMoney: 0,
+            expertise: 0,
+            professionalism: 0,
+          },
+          ratingDistribution: {
+            fiveStar: 0,
+            fourStar: 0,
+            threeStar: 0,
+            twoStar: 0,
+            oneStar: 0,
+          },
+        };
+  } catch (error) {
+    console.error('Error calculating review stats:', error);
+    return {
+      averageRating: 0,
+      totalReviews: 0,
+      categoryAverages: {
+        communication: 0,
+        qualityOfWork: 0,
+        valueForMoney: 0,
+        expertise: 0,
+        professionalism: 0,
+      },
+      ratingDistribution: {
+        fiveStar: 0,
+        fourStar: 0,
+        threeStar: 0,
+        twoStar: 0,
+        oneStar: 0,
+      },
+    };
   }
 };
 

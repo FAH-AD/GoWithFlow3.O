@@ -44,6 +44,8 @@ import HireOffers from './pages/HireOffers';
 import FreelancerJobs from './pages/FreelancerJobs';
 import FreelancerJobDetails from './pages/FreealncerJobDetails';
 import ClientJobDetails from './pages/ClientJobDetails';
+import SupportPage from './pages/SupportPage';
+import AdminIssueManagement from './pages/AdminIssueManagement';
 
 
 // Forgot Password Flow
@@ -107,6 +109,7 @@ export default function App() {
             <Route index element={<Admin />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="verify-users" element={<VerifyUsers />} />
+            <Route path="issues" element={<AdminIssueManagement />} />
           </Route>
           <Route path="/client" element={<UserLayout />}>
             <Route index element={<Client />} />
@@ -121,6 +124,7 @@ export default function App() {
             <Route path="messages" element={<Messaging />} />
             <Route path="messages/:conversationId" element={<Messaging />} />
             <Route path="profile/:userId" element={<ClientProfile />} />
+            <Route path="support" element={<SupportPage />} />
           </Route>
           
 
@@ -138,6 +142,7 @@ export default function App() {
             <Route path="messages" element={<Messaging />} />
             <Route path="messages/:conversationId" element={<Messaging />} />
             <Route path="profile/:userId" element={<FreelancerProfile />} />
+            <Route path="support" element={<SupportPage />} />
 
           </Route>
 

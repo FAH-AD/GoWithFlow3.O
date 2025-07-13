@@ -24,6 +24,7 @@ import clientVerificationRoutes from './routes/clientVerificationRoutes.js';
 import uploadTestRoutes from './routes/uploadTestRoute.js';
 import freelancerRoutes from './routes/freelancerRoutes.js';
 import userProfileRoutes from './routes/userProfileRoutes.js';
+import issueRoutes from './routes/issueRoutes.js';
 
 // Initialize app
 const app = express();
@@ -80,6 +81,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadTestRoutes);
 app.use('/api/freelancer', freelancerRoutes);
 app.use('/api/user-profile', userProfileRoutes);
+app.use('/api/issues', issueRoutes);
 
 // API documentation route
 app.get('/api', (req, res) => {

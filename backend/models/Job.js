@@ -103,6 +103,26 @@ const jobSchema = new mongoose.Schema(
     completionDate: {
       type: Date,
     },
+    workSubmission: {
+      message: {
+        type: String,
+        trim: true,
+      },
+      attachments: [
+        {
+          filename: String,
+          url: String,
+        }
+      ],
+      submittedAt: {
+        type: Date,
+      },
+      status: {
+        type: String,
+        enum: ['pending_client_review', 'approved', 'revision_requested'],
+        default: 'pending_client_review'
+      }
+    },
     paymentStatus: {
       type: String,
       enum: {

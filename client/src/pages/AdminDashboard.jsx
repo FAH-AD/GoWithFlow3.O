@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useSelector } from "react-redux"
+import { useNavigate } from "react-router-dom"
 import {
   Users,
   Briefcase,
@@ -19,6 +20,7 @@ import {
   Bell,
 } from "lucide-react"
 import Navbar from "../components/Navbar"
+import { adminApi } from "../services/adminApi"
 
 // Import components
 import UserTable from "../components/admin/user-table"
@@ -28,9 +30,18 @@ import PlatformStatus from "../components/admin/platform-status"
 
 const AdminDashboard = () => {
   const user = useSelector((state) => state.Auth.user)
+  const navigate = useNavigate()
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
+
+  // Check user authorization
+  useEffect(() => {
+    if (!user || user.role !== 'admin') {
+      navigate('/login', { state: { from: '/admin', message: 'Please login as admin to access this page' } });
+      return;
+    }
+  }, [user, navigate]);
 
   // Mock data - in a real app, this would come from an API
   const [stats, setStats] = useState({
@@ -42,111 +53,156 @@ const AdminDashboard = () => {
 
   const [recentUsers, setRecentUsers] = useState([])
   const [activityLogs, setActivityLogs] = useState([])
+  const [platformStatus, setPlatformStatus] = useState(null)
+  const [revenueData, setRevenueData] = useState(null)
+  const [error, setError] = useState(null)
 
-  // Simulate data loading
+  // Load dashboard data from API
   useEffect(() => {
+    // Only load data if user is authenticated and is admin
+    if (!user || user.role !== 'admin') {
+      return;
+    }
+
     const loadDashboardData = async () => {
-      // In a real app, you would fetch this data from your API
-      await new Promise((resolve) => setTimeout(resolve, 800))
+      try {
+        setIsLoading(true)
+        setError(null)
 
-      setStats({
-        users: { total: 5842, new: 124, active: 3218 },
-        projects: { total: 8976, active: 1432, completed: 7544 },
-        revenue: { total: 428950, thisMonth: 42680, pending: 12450 },
-        issues: { open: 24, critical: 3, resolved: 189 },
-      })
+        // Fetch dashboard stats
+        const dashboardResponse = await adminApi.getDashboardStats()
+        if (dashboardResponse.data.success) {
+          const { userStats, jobStats, paymentStats } = dashboardResponse.data.data
+          console.log(dashboardResponse.data.data);
+          // Store revenue data for the chart
+          setRevenueData(paymentStats)
+          
+          // Calculate current month revenue
+          const currentMonth = new Date().getMonth() + 1;
+          const currentMonthRevenue = paymentStats.monthlyRevenue 
+            ? paymentStats.monthlyRevenue.find(month => month.month === currentMonth)?.revenue || 0 
+            : 0;
+          
+          setStats({
+            users: {
+              total: userStats.totalUsers,
+              new: userStats.newUsersThisMonth,
+              active: userStats.totalUsers - userStats.totalAdmins, // Approximate active users
+            },
+            projects: {
+              total: jobStats.totalJobs,
+              active: jobStats.openJobs + jobStats.inProgressJobs,
+              completed: jobStats.completedJobs,
+            },
+            revenue: {
+              total: paymentStats.totalAmount,
+              thisMonth: currentMonthRevenue,
+              pending: Math.round(paymentStats.totalAmount * 0.03), // Approximate
+            },
+            issues: {
+              open: Math.floor(Math.random() * 30) + 10, // Mock data for now
+              critical: Math.floor(Math.random() * 5) + 1,
+              resolved: Math.floor(Math.random() * 200) + 150,
+            },
+          })
+        }
 
-      setRecentUsers([
-        {
-          id: 1,
-          name: "Emma Thompson",
-          email: "emma@example.com",
-          role: "freelancer",
-          joined: "2023-07-28",
-          status: "active",
-          avatar: "https://randomuser.me/api/portraits/women/32.jpg",
-        },
-        {
-          id: 2,
-          name: "Michael Chen",
-          email: "michael@techcorp.com",
-          role: "client",
-          joined: "2023-07-29",
-          status: "active",
-          avatar: "https://randomuser.me/api/portraits/men/45.jpg",
-        },
-        {
-          id: 3,
-          name: "Sophia Rodriguez",
-          email: "sophia@designstudio.com",
-          role: "freelancer",
-          joined: "2023-07-30",
-          status: "pending",
-          avatar: "https://randomuser.me/api/portraits/women/68.jpg",
-        },
-        {
-          id: 4,
-          name: "James Wilson",
-          email: "james@marketingpro.com",
-          role: "client",
-          joined: "2023-07-30",
-          status: "active",
-          avatar: "https://randomuser.me/api/portraits/men/22.jpg",
-        },
-        {
-          id: 5,
-          name: "Olivia Parker",
-          email: "olivia@creativeworks.com",
-          role: "freelancer",
-          joined: "2023-07-31",
-          status: "active",
-          avatar: "https://randomuser.me/api/portraits/women/17.jpg",
-        },
-      ])
+        // Fetch recent users
+        const usersResponse = await adminApi.getRecentUsers(5)
+        if (usersResponse.data.success) {
+          setRecentUsers(usersResponse.data.data.users)
+        }
 
-      setActivityLogs([
-        {
-          id: 1,
-          user: "System",
-          action: "Maintenance scheduled for August 15, 2023",
-          timestamp: "2023-08-01T09:15:00",
-          type: "system",
-        },
-        {
-          id: 2,
-          user: "Emma Thompson",
-          action: "Reported an issue with payment processing",
-          timestamp: "2023-08-01T08:42:00",
-          type: "issue",
-        },
-        {
-          id: 3,
-          user: "Admin",
-          action: "Updated platform terms and conditions",
-          timestamp: "2023-08-01T07:30:00",
-          type: "admin",
-        },
-        {
-          id: 4,
-          user: "Michael Chen",
-          action: "Posted a new project: E-commerce Website Redesign",
-          timestamp: "2023-07-31T16:25:00",
-          type: "project",
-        },
-        {
-          id: 5,
-          user: "System",
-          action: "Automatic backup completed successfully",
-          timestamp: "2023-07-31T03:00:00",
-          type: "system",
-        },
-      ])
+        // Fetch activity logs
+        const logsResponse = await adminApi.getActivityLogs({ limit: 5 })
+        if (logsResponse.data.success) {
+          setActivityLogs(logsResponse.data.data.logs)
+        }
 
-      setIsLoading(false)
+        // Fetch platform status
+        const statusResponse = await adminApi.getPlatformStatus()
+        if (statusResponse.data.success) {
+          setPlatformStatus(statusResponse.data.data)
+        }
+
+        // Fetch issue stats
+        let issueStats = { open: 0, critical: 0, resolved: 0 };
+        try {
+          const issueResponse = await adminApi.getIssueStats();
+          if (issueResponse.data.success) {
+            const data = issueResponse.data.data;
+            issueStats = {
+              open: data.openIssues,
+              critical: data.priorityBreakdown?.find(p => p._id === 'urgent')?.count || 0,
+              resolved: data.resolvedIssues,
+            };
+          }
+        } catch (issueError) {
+          console.log('Issue stats not available yet');
+        }
+
+        // Update stats with issue data
+        setStats(prevStats => ({
+          ...prevStats,
+          issues: issueStats,
+        }));
+
+      } catch (error) {
+        console.error('Error loading dashboard data:', error)
+        setError('Failed to load dashboard data. Please try again.')
+        
+        // Fallback to mock data
+        setStats({
+          users: { total: 5842, new: 124, active: 3218 },
+          projects: { total: 8976, active: 1432, completed: 7544 },
+          revenue: { total: 428950, thisMonth: 42680, pending: 12450 },
+          issues: { open: 24, critical: 3, resolved: 189 },
+        })
+
+        setRecentUsers([
+          {
+            id: 1,
+            name: "Emma Thompson",
+            email: "emma@example.com",
+            role: "freelancer",
+            joined: "2023-07-28",
+            status: "active",
+            avatar: "https://ui-avatars.com/api/?name=Emma+Thompson&background=9333EA&color=fff",
+          },
+          {
+            id: 2,
+            name: "Michael Chen",
+            email: "michael@techcorp.com",
+            role: "client",
+            joined: "2023-07-29",
+            status: "active",
+            avatar: "https://ui-avatars.com/api/?name=Michael+Chen&background=9333EA&color=fff",
+          },
+        ])
+
+        setActivityLogs([
+          {
+            id: 1,
+            user: "System",
+            action: "Maintenance scheduled for August 15, 2023",
+            timestamp: "2023-08-01T09:15:00",
+            type: "system",
+          },
+          {
+            id: 2,
+            user: "Emma Thompson",
+            action: "Reported an issue with payment processing",
+            timestamp: "2023-08-01T08:42:00",
+            type: "issue",
+          },
+        ])
+      } finally {
+        setIsLoading(false)
+      }
     }
 
     loadDashboardData()
-  }, [])
+  }, [user])
 
   if (isLoading) {
     return (
@@ -159,11 +215,29 @@ const AdminDashboard = () => {
     )
   }
 
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#0a0a0f]">
+        <div className="flex flex-col items-center text-center">
+          <AlertTriangle className="w-16 h-16 text-red-400 mb-4" />
+          <p className="text-white text-xl mb-2">Failed to Load Dashboard</p>
+          <p className="text-gray-400 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="bg-[#9333EA] hover:bg-[#a855f7] text-white px-6 py-2 rounded-md transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white pb-12">
       <Navbar />
       {/* Admin Header */}
-      <div className="bg-gradient-to-r mb-6 from-[#9333EA]/20 to-[#0a0a0f] bg-gradient-to-r mb-6 h-[200px] from-[#9333EA]/20 to-[#0a0a0f] border-b border-[#2d2d3a] flex items-center border-b border-[#2d2d3a]">
+      <div className="bg-gradient-to-r mb-6 from-[#9333EA]/20 to-[#0a0a0f] h-[200px] border-b border-[#2d2d3a] flex items-center">
         <div className="container mx-auto px-4 py-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between">
             <div>
@@ -284,10 +358,10 @@ const AdminDashboard = () => {
               <div>
                 <p className="text-gray-400 text-sm">Open Issues</p>
                 <h3 className="text-2xl font-bold mt-1">{stats.issues.open}</h3>
-                <div className="flex items-center mt-2 text-red-400 text-sm">
+                {/* <div className="flex items-center mt-2 text-red-400 text-sm">
                   <AlertTriangle size={14} className="mr-1" />
                   <span>{stats.issues.critical} critical issues</span>
-                </div>
+                </div> */}
               </div>
               <div className="bg-[#9333EA]/20 p-3 rounded-lg">
                 <AlertTriangle size={24} className="text-[#9333EA]" />
@@ -408,7 +482,7 @@ const AdminDashboard = () => {
               </div>
 
               <div className="p-6">
-                <RevenueChart />
+                <RevenueChart data={revenueData} isLoading={isLoading} />
 
                 <div className="grid grid-cols-3 gap-4 mt-6">
                   <div className="bg-[#1e1e2d] p-4 rounded-lg">
@@ -416,18 +490,34 @@ const AdminDashboard = () => {
                     <p className="text-xl font-bold mt-1">${stats.revenue.total.toLocaleString()}</p>
                     <div className="flex items-center mt-2 text-green-400 text-xs">
                       <TrendingUp size={12} className="mr-1" />
-                      <span>+18% from last year</span>
+                      <span>+{revenueData?.monthlyRevenue ? 
+                        Math.round(((revenueData.monthlyRevenue[new Date().getMonth()]?.revenue || 0) / 
+                        (revenueData.monthlyRevenue[new Date().getMonth() - 1]?.revenue || 1) - 1) * 100)
+                        : 18}% from last month</span>
                     </div>
                   </div>
                   <div className="bg-[#1e1e2d] p-4 rounded-lg">
                     <p className="text-gray-400 text-xs">Platform Fee</p>
-                    <p className="text-xl font-bold mt-1">${Math.round(stats.revenue.total * 0.1).toLocaleString()}</p>
-                    <p className="text-gray-400 text-xs mt-2">10% of total revenue</p>
+                    <p className="text-xl font-bold mt-1">
+                      ${revenueData?.totalServiceFee ? 
+                        revenueData.totalServiceFee.toLocaleString() : 
+                        Math.round(stats.revenue.total * 0.1).toLocaleString()
+                      }
+                    </p>
+                    <p className="text-gray-400 text-xs mt-2">
+                      {revenueData?.totalServiceFee ? 
+                        `${Math.round((revenueData.totalServiceFee / revenueData.totalAmount) * 100)}% of total revenue` :
+                        '10% of total revenue'
+                      }
+                    </p>
                   </div>
                   <div className="bg-[#1e1e2d] p-4 rounded-lg">
                     <p className="text-gray-400 text-xs">Avg. Project Value</p>
                     <p className="text-xl font-bold mt-1">
-                      ${Math.round(stats.revenue.total / stats.projects.total).toLocaleString()}
+                      ${stats.projects.total > 0 ? 
+                        Math.round(stats.revenue.total / stats.projects.total).toLocaleString() :
+                        '0'
+                      }
                     </p>
                     <p className="text-gray-400 text-xs mt-2">Per completed project</p>
                   </div>
@@ -445,7 +535,7 @@ const AdminDashboard = () => {
               </div>
 
               <div className="p-6">
-                <PlatformStatus />
+                <PlatformStatus data={platformStatus} />
               </div>
             </div>
 
