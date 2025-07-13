@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react"
 import Navbar from "../components/Navbar"
+import useConversation from "../components/useConversation"
 import { uploadFile } from "../services/fileUpload" // Import the uploadFile function
 
 
@@ -36,6 +37,7 @@ const MyTeams = () => {
   const [submissionFiles, setSubmissionFiles] = useState([])
   const [isUploading, setIsUploading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const { startConversation } = useConversation({ user});
 
   const token = localStorage.getItem("authToken")
 
@@ -83,6 +85,22 @@ const MyTeams = () => {
     fetchTeams()
   }, [])
 
+  const handleStartConversation = ({otherUserId}) => {
+  
+    startConversation({
+      receiverId: otherUserId,
+      jobId,
+      onSuccess: (data) => {
+        navigate(`/client/messages/${data.message.conversation._id}`)
+        
+        console.log("Conversation created and joined:", data);
+      },
+      onError: (err) => {
+        console.error("Failed to start conversation", err);
+      },
+    });
+  };
+
   const openSubmitPopup = (milestone) => {
     setSubmittingMilestone(milestone)
     setIsSubmitPopupOpen(true)
@@ -96,6 +114,7 @@ const MyTeams = () => {
   }
   const handleSelectTeam = (team) => {
     setSelectedTeam(team)
+    console.log("Selected team:", team)
   }
 
   const handleSubmitMilestone = async () => {
@@ -307,7 +326,7 @@ const MyTeams = () => {
                         )}
                         <div>
                           <h4 className="font-bold">{selectedTeam.client.name}</h4>
-                          <button className="text-sm text-[#9333EA] hover:text-[#a855f7] mt-1 flex items-center">
+                          <button  onClick={ () => handleStartConversation({otherUserId: selectedTeam.client._id})} className="text-sm text-[#9333EA] hover:text-[#a855f7] mt-1 flex items-center">
                             <MessageSquare size={14} className="mr-1" />
                             Message Client
                           </button>
@@ -357,7 +376,7 @@ const MyTeams = () => {
                               <p className="text-sm text-gray-300">{teammate.role}</p>
                             </div>
                           </div>
-                          <button className="text-sm text-[#9333EA] hover:text-[#a855f7] mt-3 flex items-center">
+                          <button onClick={ () => handleStartConversation({otherUserId: teammate._id})} className="text-sm text-[#9333EA] hover:text-[#a855f7] mt-3 flex items-center">
                             <MessageSquare size={14} className="mr-1" />
                             Message
                           </button>

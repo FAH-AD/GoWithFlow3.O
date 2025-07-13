@@ -448,6 +448,7 @@ export const searchFreelancers = async (req, res) => {
   }
 };
 
+
 export const submitMilestone = async (req, res) => {
   try {
     const { jobId, milestoneId } = req.params;
@@ -458,14 +459,17 @@ export const submitMilestone = async (req, res) => {
       return customErrorHandler(res, new Error('Job not found'), 404);
     }
 
-    let teamMember, milestone;
+    let milestone;
     if (job.isCrowdsourced) {
-      teamMember = job.team.find(member => member.freelancer.toString() === req.user._id.toString());
+      const teamMember = job.team.find(member => member.freelancer.toString() === req.user._id.toString());
       if (!teamMember) {
         return customErrorHandler(res, new Error('You are not a member of this team'), 403);
       }
       milestone = teamMember.milestones.id(milestoneId);
     } else {
+      if (job.hiredFreelancer.toString() !== req.user._id.toString()) {
+        return customErrorHandler(res, new Error('You are not authorized to submit this milestone'), 403);
+      }
       milestone = job.milestones.id(milestoneId);
     }
 
@@ -516,3 +520,83 @@ export const submitMilestone = async (req, res) => {
     return customErrorHandler(res, error);
   }
 };
+
+
+// ... existing code ...
+
+export const submitRevision = async (req, res) => {
+  try {
+    const { id, milestoneId } = req.params;
+    const { revisionNotes, attachments } = req.body;
+
+    const job = await Job.findById(id);
+    if (!job) return customErrorHandler(res, new Error('Job not found'), 404);
+
+    let milestone;
+    let isFreelancerAuthorized = false;
+
+    if (job.isCrowdsourced) {
+      const teamMember = job.team.find(member => 
+        member.freelancer.toString() === req.user._id.toString() &&
+        member.milestones.some(m => m._id.toString() === milestoneId)
+      );
+      if (teamMember) {
+        milestone = teamMember.milestones.id(milestoneId);
+        isFreelancerAuthorized = true;
+      }
+    } else {
+      if (job.hiredFreelancer.toString() === req.user._id.toString()) {
+        milestone = job.milestones.id(milestoneId);
+        isFreelancerAuthorized = true;
+      }
+    }
+
+    if (!isFreelancerAuthorized) {
+      return customErrorHandler(res, new Error('Unauthorized: You are not assigned to this milestone'), 403);
+    }
+
+    if (!milestone) return customErrorHandler(res, new Error('Milestone not found'), 404);
+
+    if (milestone.status !== 'in-revision') {
+      return customErrorHandler(res, new Error('Can only submit revision for milestones in revision'), 400);
+    }
+
+    // Update the revision object
+    milestone.revision = {
+      ...milestone.revision,
+      freelancerNotes: revisionNotes,
+      freelancerAttachments: attachments,
+      submittedAt: new Date(),
+      status: 'submitted'
+    };
+
+    milestone.status = 'submitted';
+    await job.save();
+
+    // Send notification to client
+    await Notification.create({
+      recipient: job.client,
+      type: 'revision-submitted',
+      title: 'Revision Submitted',
+      message: `A revision has been submitted for the milestone "${milestone.title}" in job "${job.title}".`,
+      data: {
+        job: job._id,
+        milestone: milestone._id,
+      },
+    });
+
+    // Send email notification to client
+    const client = await User.findById(job.client);
+    await sendEmail({
+      to: client.email,
+      subject: 'Revision Submitted',
+      text: `A revision has been submitted for the milestone "${milestone.title}" in job "${job.title}". Please check your dashboard to review.`
+    });
+
+    return successResponse(res, 200, 'Revision submitted successfully', { milestone });
+  } catch (error) {
+    console.error('Error in submitRevision:', error);
+    return customErrorHandler(res, error);
+  }
+};
+

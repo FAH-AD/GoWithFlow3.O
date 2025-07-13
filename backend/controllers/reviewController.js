@@ -11,101 +11,139 @@ import { successResponse, errorResponse } from '../utils/apiResponse.js';
  */
 export const createReview = async (req, res) => {
   try {
+    console.log('Create review request body:', req.body);
+    console.log('User making request:', req.user._id);
+
+    
     const {
       jobId,
-      toUserId,
+      recipient,
       rating,
-      content,
+      comment,
       communication,
-      quality,
+      qualityOfWork,
+      valueForMoney,
       expertise,
-      deadlineAdherence,
-      overallExperience,
-      isPublic,
+      professionalism,
+      isPublic
     } = req.body;
+
+    console.log("recipient:", recipient);
     
     // Validate job
-    const job = await Job.findById(jobId);
+    const job = await Job.findById(jobId).populate('client hiredFreelancer');
     if (!job) {
-      return errorResponse(res, 'Job not found', 404);
+      return errorResponse(res, 404, 'Job not found');
     }
     
     // Validate recipient user
-    const toUser = await User.findById(toUserId);
-    if (!toUser) {
-      return errorResponse(res, 'Recipient user not found', 404);
+    const recipientUser = await User.findById(recipient);
+    if (!recipientUser) {
+      return errorResponse(res, 404, 'Recipient user not found');
     }
     
     // Check if job is completed
     if (job.status !== 'completed') {
-      return errorResponse(res, 'You can only review completed jobs', 400);
+      return errorResponse(res, 400, 'You can only review completed jobs');
+    }
+    
+    // Validate that job has both client and hired freelancer
+    if (!job.client || !job.hiredFreelancer) {
+      return errorResponse(res, 400, 'Job must have both a client and hired freelancer to submit reviews');
     }
     
     // Check if reviewer is either the client or the hired freelancer
-    const isClient = job.client.toString() === req.user._id.toString();
-    const isFreelancer = job.hiredFreelancer && job.hiredFreelancer.toString() === req.user._id.toString();
-    
+    console.log('Checking if user is client or freelancer:', {
+      userId: req.user,
+    });
+    const isClient = req.user.role === 'client' ;
+    const isFreelancer = req.user.role === 'freelancer';
+
     if (!isClient && !isFreelancer) {
-      return errorResponse(res, 'You must be either the client or the hired freelancer to submit a review', 403);
+      return errorResponse(res, 403, 'You must be either the client or the hired freelancer to submit a review');
     }
     
-    // Check that the review recipient is the correct role
-    if (isClient && toUser._id.toString() !== job.hiredFreelancer.toString()) {
-      return errorResponse(res, 'The review recipient must be the hired freelancer', 400);
-    }
-    
-    if (isFreelancer && toUser._id.toString() !== job.client.toString()) {
-      return errorResponse(res, 'The review recipient must be the client', 400);
-    }
+    // Determine review type and validate recipient
+    let reviewType = isClient ? 'client-to-freelancer' : 'freelancer-to-client';
+
+    console.log('Review type:', reviewType);
     
     // Check if review already exists
     const existingReview = await Review.findOne({
       job: jobId,
-      from: req.user._id,
-      to: toUserId,
+      reviewer: req.user._id,
+      recipient: recipient,
     });
     
     if (existingReview) {
-      return errorResponse(res, 'You have already submitted a review for this job', 400);
+      return errorResponse(res, 400, 'You have already submitted a review for this job');
     }
     
     // Create new review
-    const review = await Review.create({
-      job: jobId,
-      from: req.user._id,
-      to: toUserId,
-      rating: parseInt(rating),
-      content,
-      categories: {
+    let review;
+    try {
+      review = await Review.create({
+        job: jobId,
+        reviewer: req.user._id,
+        recipient: recipient,
+        rating: parseInt(rating),
+        comment,
         communication: parseInt(communication || rating),
-        quality: parseInt(quality || rating),
+        qualityOfWork: parseInt(qualityOfWork || rating),
+        valueForMoney: parseInt(valueForMoney || rating),
         expertise: parseInt(expertise || rating),
-        deadlineAdherence: parseInt(deadlineAdherence || rating),
-        overallExperience: parseInt(overallExperience || rating),
-      },
-      isPublic: isPublic === undefined ? true : isPublic,
-    });
+        professionalism: parseInt(professionalism || rating),
+        type: reviewType,
+        isPublic: isPublic !== false, // Default to true unless explicitly false
+      });
+    } catch (error) {
+      console.error('Review creation error:', error);
+      
+      // Handle duplicate key error
+      if (error.code === 11000) {
+        // Check if it's the expected duplicate (same job, reviewer, recipient)
+        if (error.keyPattern && (error.keyPattern.job || error.keyPattern.reviewer || error.keyPattern.recipient)) {
+          return errorResponse(res, 400, 'You have already submitted a review for this job');
+        }
+        
+        // Handle legacy index issues
+        if (error.message.includes('from_1_to_1_project_1') || 
+            error.message.includes('from: null, to: null, project: null')) {
+          return errorResponse(res, 500, 'Database configuration issue. Please contact support. (Legacy index conflict)');
+        }
+        
+        // Generic duplicate error
+        return errorResponse(res, 400, 'Duplicate review detected');
+      }
+      
+      // Re-throw other errors
+      throw error;
+    }
+    
+    // Populate the review with user details
+    await review.populate('reviewer', 'firstName lastName profileImage');
+    await review.populate('recipient', 'firstName lastName profileImage');
+    await review.populate('job', 'title');
     
     // Create notification for review recipient
     await Notification.create({
-      recipient: toUserId,
-      type: 'new_review',
+      recipient: recipient,
+      type: 'new-review',
       title: 'New Review Received',
       message: `You've received a ${rating}-star review for the job "${job.title}"`,
       data: {
         job: job._id,
-        sender: req.user._id,
+        reviewer: req.user._id,
         review: review._id,
       },
     });
     
-    return successResponse(res, {
+    return successResponse(res, 201, 'Review submitted successfully', {
       review,
-      message: 'Review submitted successfully',
-    }, 201);
+    });
   } catch (error) {
     console.error('Create review error:', error);
-    return errorResponse(res, error.message, 500);
+    return errorResponse(res, 500, error.message);
   }
 };
 
@@ -121,34 +159,44 @@ export const getUserReviews = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
     
+    console.log('Fetching reviews for user:', userId);
+    
     // Check if user exists
     const user = await User.findById(userId);
     if (!user) {
-      return errorResponse(res, 'User not found', 404);
+      return errorResponse(res, 404, 'User not found');
     }
     
     // Build query - only public reviews unless viewing your own
-    const query = { to: userId };
+    const query = { recipient: userId };
     
+    // If no user is authenticated or viewing someone else's profile, only show public reviews
     if (!req.user || req.user._id.toString() !== userId) {
       query.isPublic = true;
     }
     
+    console.log('Review query:', query);
+    console.log('Requesting user:', req.user ? req.user._id : 'not authenticated');
+    console.log('Target user:', userId);
+    
     // Count total reviews
     const totalReviews = await Review.countDocuments(query);
+    console.log('Total reviews found:', totalReviews);
     
     // Get reviews
     const reviews = await Review.find(query)
-      .populate('from', 'firstName lastName profileImage')
+      .populate('reviewer', 'firstName lastName profileImage')
       .populate('job', 'title')
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 });
     
+    console.log('Reviews retrieved:', reviews.length);
+    
     // Get review statistics
     const reviewStats = await Review.getReviewStats(userId);
     
-    return successResponse(res, {
+    return successResponse(res, 200, 'Reviews retrieved successfully', {
       reviews,
       stats: reviewStats,
       page,
@@ -158,7 +206,7 @@ export const getUserReviews = async (req, res) => {
     });
   } catch (error) {
     console.error('Get user reviews error:', error);
-    return errorResponse(res, error.message, 500);
+    return errorResponse(res, 500, error.message);
   }
 };
 
@@ -171,30 +219,43 @@ export const getJobReviews = async (req, res) => {
   try {
     const jobId = req.params.jobId;
     
-    // Check if job exists
-    const job = await Job.findById(jobId);
+    // Check if job exists and populate client and hiredFreelancer
+    const job = await Job.findById(jobId).populate('client hiredFreelancer');
     if (!job) {
-      return errorResponse(res, 'Job not found', 404);
+      return errorResponse(res, 404, 'Job not found');
     }
     
-    // Get client and freelancer review
+    console.log('Job found for reviews:', {
+      _id: job._id,
+      client: job.client?._id,
+      hiredFreelancer: job.hiredFreelancer?._id
+    });
+    
+    // Get client and freelancer reviews
     const clientReview = await Review.findOne({
       job: jobId,
-      from: job.client,
-    }).populate('from', 'firstName lastName profileImage role');
+      reviewer: job.client?._id,
+    }).populate('reviewer', 'firstName lastName profileImage role')
+      .populate('job', 'title');
     
     const freelancerReview = await Review.findOne({
       job: jobId,
-      to: job.client,
-    }).populate('from', 'firstName lastName profileImage role');
+      reviewer: job.hiredFreelancer?._id,
+    }).populate('reviewer', 'firstName lastName profileImage role')
+      .populate('job', 'title');
     
-    return successResponse(res, {
+    console.log('Found reviews:', {
+      clientReview: clientReview ? clientReview._id : 'none',
+      freelancerReview: freelancerReview ? freelancerReview._id : 'none'
+    });
+    
+    return successResponse(res, 200, 'Job reviews retrieved successfully', {
       clientReview,
       freelancerReview,
     });
   } catch (error) {
     console.error('Get job reviews error:', error);
-    return errorResponse(res, error.message, 500);
+    return errorResponse(res, 500, error.message);
   }
 };
 
@@ -209,12 +270,12 @@ export const updateReview = async (req, res) => {
     
     const review = await Review.findById(reviewId);
     if (!review) {
-      return errorResponse(res, 'Review not found', 404);
+      return errorResponse(res, 404, 'Review not found');
     }
     
     // Check if user is the review author
-    if (review.from.toString() !== req.user._id.toString()) {
-      return errorResponse(res, 'You can only update your own reviews', 403);
+    if (review.reviewer.toString() !== req.user._id.toString()) {
+      return errorResponse(res, 403, 'You can only update your own reviews');
     }
     
     // Check if review is less than 30 days old
@@ -222,7 +283,7 @@ export const updateReview = async (req, res) => {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
     if (review.createdAt < thirtyDaysAgo) {
-      return errorResponse(res, 'Reviews can only be updated within 30 days of creation', 400);
+      return errorResponse(res, 400, 'Reviews can only be updated within 30 days of creation');
     }
     
     // Update review fields
@@ -250,7 +311,7 @@ export const updateReview = async (req, res) => {
     
     // Create notification for review recipient
     await Notification.create({
-      recipient: review.to,
+      recipient: review.recipient,
       type: 'new_review',
       title: 'Review Updated',
       message: `A review you received has been updated`,
@@ -261,13 +322,12 @@ export const updateReview = async (req, res) => {
       },
     });
     
-    return successResponse(res, {
+    return successResponse(res, 200, 'Review updated successfully', {
       review,
-      message: 'Review updated successfully',
     });
   } catch (error) {
     console.error('Update review error:', error);
-    return errorResponse(res, error.message, 500);
+    return errorResponse(res, 500, error.message);
   }
 };
 
@@ -282,22 +342,20 @@ export const deleteReview = async (req, res) => {
     
     const review = await Review.findById(reviewId);
     if (!review) {
-      return errorResponse(res, 'Review not found', 404);
+      return errorResponse(res, 404, 'Review not found');
     }
     
     // Check if user is the review author or an admin
-    if (review.from.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
-      return errorResponse(res, 'You can only delete your own reviews', 403);
+    if (review.reviewer.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return errorResponse(res, 403, 'You can only delete your own reviews');
     }
     
-    await review.remove();
+    await Review.findByIdAndDelete(reviewId);
     
-    return successResponse(res, {
-      message: 'Review deleted successfully',
-    });
+    return successResponse(res, 200, 'Review deleted successfully');
   } catch (error) {
     console.error('Delete review error:', error);
-    return errorResponse(res, error.message, 500);
+    return errorResponse(res, 500, error.message);
   }
 };
 
@@ -312,26 +370,24 @@ export const reportReview = async (req, res) => {
     const { reason } = req.body;
     
     if (!reason) {
-      return errorResponse(res, 'Report reason is required', 400);
+      return errorResponse(res, 400, 'Report reason is required');
     }
     
     const review = await Review.findById(reviewId);
     if (!review) {
-      return errorResponse(res, 'Review not found', 404);
+      return errorResponse(res, 404, 'Review not found');
     }
     
     // Check if the reporter is the review recipient
-    if (review.to.toString() !== req.user._id.toString()) {
-      return errorResponse(res, 'You can only report reviews about yourself', 403);
+    if (review.recipient.toString() !== req.user._id.toString()) {
+      return errorResponse(res, 403, 'You can only report reviews about yourself');
     }
     
-    // Update review with report information
-    review.reported = {
-      isReported: true,
-      reason,
-      reportedBy: req.user._id,
-      reportedAt: new Date(),
-    };
+    // Update review with report information - using the fields that exist in the model
+    review.isReported = true;
+    review.reportReason = reason;
+    review.reportedBy = req.user._id;
+    review.reportedAt = new Date();
     
     await review.save();
     
@@ -352,12 +408,10 @@ export const reportReview = async (req, res) => {
       });
     }
     
-    return successResponse(res, {
-      message: 'Review reported successfully. Our team will review it shortly.',
-    });
+    return successResponse(res, 200, 'Review reported successfully. Our team will review it shortly.');
   } catch (error) {
     console.error('Report review error:', error);
-    return errorResponse(res, error.message, 500);
+    return errorResponse(res, 500, error.message);
   }
 };
 
@@ -372,40 +426,38 @@ export const markReviewAsHelpful = async (req, res) => {
     
     const review = await Review.findById(reviewId);
     if (!review) {
-      return errorResponse(res, 'Review not found', 404);
+      return errorResponse(res, 404, 'Review not found');
     }
     
     // Check if user has already marked this review as helpful
-    const alreadyMarked = review.isHelpful.some(
+    const alreadyMarked = review.helpfulVotes.some(
       item => item.user.toString() === req.user._id.toString()
     );
     
     if (alreadyMarked) {
       // Remove the helpful mark
-      review.isHelpful = review.isHelpful.filter(
+      review.helpfulVotes = review.helpfulVotes.filter(
         item => item.user.toString() !== req.user._id.toString()
       );
       
       await review.save();
       
-      return successResponse(res, {
-        message: 'Removed helpful mark from review',
-        helpfulCount: review.isHelpful.length,
+      return successResponse(res, 200, 'Removed helpful mark from review', {
+        helpfulCount: review.helpfulVotes.length,
       });
     } else {
       // Add the helpful mark
-      review.isHelpful.push({ user: req.user._id });
+      review.helpfulVotes.push({ user: req.user._id });
       
       await review.save();
       
-      return successResponse(res, {
-        message: 'Marked review as helpful',
-        helpfulCount: review.isHelpful.length,
+      return successResponse(res, 200, 'Marked review as helpful', {
+        helpfulCount: review.helpfulVotes.length,
       });
     }
   } catch (error) {
     console.error('Mark review as helpful error:', error);
-    return errorResponse(res, error.message, 500);
+    return errorResponse(res, 500, error.message);
   }
 };
 
@@ -418,7 +470,7 @@ export const getReportedReviews = async (req, res) => {
   try {
     // Check if user is admin
     if (req.user.role !== 'admin') {
-      return errorResponse(res, 'Not authorized to access reported reviews', 403);
+      return errorResponse(res, 403, 'Not authorized to access reported reviews');
     }
     
     const page = parseInt(req.query.page) || 1;
@@ -426,22 +478,22 @@ export const getReportedReviews = async (req, res) => {
     const skip = (page - 1) * limit;
     
     // Get only reported reviews
-    const query = { 'reported.isReported': true };
+    const query = { isReported: true };
     
     // Count total reported reviews
     const totalReported = await Review.countDocuments(query);
     
     // Get reported reviews
     const reportedReviews = await Review.find(query)
-      .populate('from', 'firstName lastName profileImage')
-      .populate('to', 'firstName lastName profileImage')
+      .populate('reviewer', 'firstName lastName profileImage')
+      .populate('recipient', 'firstName lastName profileImage')
       .populate('job', 'title')
-      .populate('reported.reportedBy', 'firstName lastName')
+      .populate('reportedBy', 'firstName lastName')
       .skip(skip)
       .limit(limit)
-      .sort({ 'reported.reportedAt': -1 });
+      .sort({ reportedAt: -1 });
     
-    return successResponse(res, {
+    return successResponse(res, 200, 'Reported reviews retrieved successfully', {
       reportedReviews,
       page,
       limit,
@@ -450,7 +502,7 @@ export const getReportedReviews = async (req, res) => {
     });
   } catch (error) {
     console.error('Get reported reviews error:', error);
-    return errorResponse(res, error.message, 500);
+    return errorResponse(res, 500, error.message);
   }
 };
 
@@ -463,7 +515,7 @@ export const getReviewStats = async (req, res) => {
   try {
     // Check if user is admin
     if (req.user.role !== 'admin') {
-      return errorResponse(res, 'Not authorized to access review statistics', 403);
+      return errorResponse(res, 403, 'Not authorized to access review statistics');
     }
     
     // Overall review count
@@ -543,7 +595,7 @@ export const getReviewStats = async (req, res) => {
       };
     });
     
-    return successResponse(res, {
+    return successResponse(res, 200, 'Review statistics retrieved successfully', {
       totalReviews,
       averageRating: ratingStats.length > 0 ? ratingStats[0].averageRating : 0,
       starCounts: ratingStats.length > 0 ? {
@@ -576,6 +628,6 @@ export const getReviewStats = async (req, res) => {
     });
   } catch (error) {
     console.error('Get review stats error:', error);
-    return errorResponse(res, error.message, 500);
+    return errorResponse(res, 500, error.message);
   }
 };

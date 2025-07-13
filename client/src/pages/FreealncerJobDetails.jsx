@@ -14,6 +14,10 @@ import {
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import { uploadFile } from "../services/fileUpload";
+import JobCompletionModal from "../components/JobCompletionModal";
+import ReviewModal from "../components/ReviewModal";
+import ReviewsList from "../components/ReviewsList";
+import { jobCompletionService, reviewService } from "../services/reviewService";
 
 const FreelancerJobDetails = () => {
   const { jobId } = useParams();
@@ -29,6 +33,12 @@ const FreelancerJobDetails = () => {
   const [submissionFiles, setSubmissionFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [reviewRecipient, setReviewRecipient] = useState(null);
+  const [jobReviews, setJobReviews] = useState(null);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [hasUserReviewed, setHasUserReviewed] = useState(false);
 
   const token = localStorage.getItem("authToken");
 
@@ -63,11 +73,39 @@ const FreelancerJobDetails = () => {
       );
       console.log("Job details response:", response.data);
       setJob(response.data.data);
+
+      // Fetch job reviews if job is completed
+      if (response.data.data.status === 'completed') {
+        await fetchJobReviews();
+      }
     } catch (err) {
       console.error("Error fetching job details:", err);
       setError("Failed to fetch job details");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchJobReviews = async () => {
+    setReviewsLoading(true);
+    try {
+      const reviewsData = await reviewService.getJobReviews(jobId);
+      console.log('Job reviews data received:', reviewsData);
+      setJobReviews(reviewsData);
+      
+      // Check if current user has already reviewed
+      const clientReview = reviewsData.clientReview;
+      const freelancerReview = reviewsData.freelancerReview;
+      
+      if (user.role === 'client' && clientReview) {
+        setHasUserReviewed(true);
+      } else if (user.role === 'freelancer' && freelancerReview) {
+        setHasUserReviewed(true);
+      }
+    } catch (error) {
+      console.error('Error fetching job reviews:', error);
+    } finally {
+      setReviewsLoading(false);
     }
   };
 
@@ -124,6 +162,40 @@ const FreelancerJobDetails = () => {
       alert("Failed to submit milestone. Please try again.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Handle work submission for job completion
+  const handleSubmitWorkForCompletion = async (workData) => {
+    try {
+      await jobCompletionService.submitWork(jobId, workData);
+      await fetchJobDetails(); // Refresh job details to update UI
+      setIsCompletionModalOpen(false); // Close the modal
+      alert(
+        "Work submitted successfully! The client will be notified to review and complete the job."
+      );
+    } catch (error) {
+      console.error("Error submitting work:", error);
+      alert("Failed to submit work. Please try again.");
+    }
+  };
+
+  // Handle starting review process
+  const handleStartReview = (recipient) => {
+    setReviewRecipient(recipient);
+    setIsReviewModalOpen(true);
+  };
+
+  // Handle review submission
+  const handleSubmitReview = async (reviewData) => {
+    try {
+      await reviewService.createReview(reviewData);
+      alert("Review submitted successfully!");
+      setHasUserReviewed(true); // Update state immediately
+      await fetchJobDetails(); // Refresh job details and reviews
+    } catch (error) {
+      console.error("Error submitting review:", error);
+      alert("Failed to submit review. Please try again.");
     }
   };
 
@@ -206,6 +278,37 @@ const FreelancerJobDetails = () => {
                     <p className="text-lg font-bold capitalize">{job.status}</p>
                   </div>
                 </div>
+
+                {/* Job Actions */}
+                {job.status === 'in-progress' && (
+                  <div className="mt-6 flex gap-4">
+                    {job.workSubmission && job.workSubmission.submittedAt ? (
+                      <div className="bg-blue-600/10 border border-blue-600/20 text-blue-400 font-medium py-2 px-4 rounded-md flex items-center">
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Final Work Submitted - Awaiting Client Review
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setIsCompletionModalOpen(true)}
+                        className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md transition-colors flex items-center"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Submit Final Work
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {job.status === 'completed' && !hasUserReviewed && (
+                  <div className="mt-6 flex gap-4">
+                    <button
+                      onClick={() => handleStartReview(job.client)}
+                      className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
+                    >
+                      Leave Review for Client
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -352,6 +455,42 @@ const FreelancerJobDetails = () => {
                 </div>
               </div>
             </div>
+
+            {/* Job Reviews Section */}
+            {job.status === 'completed' && (
+              <div className="bg-[#121218] rounded-lg border border-[#2d2d3a] overflow-hidden mt-6">
+                <div className="p-6 border-b border-[#2d2d3a]">
+                  <h2 className="text-xl font-bold">Project Reviews</h2>
+                </div>
+                <div className="p-6">
+                  {reviewsLoading ? (
+                    <div className="flex justify-center items-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                    </div>
+                  ) : jobReviews && (jobReviews.clientReview || jobReviews.freelancerReview) ? (
+                    <div className="space-y-6">
+                      {jobReviews.clientReview && (
+                        <div>
+                          <h4 className="text-lg font-semibold text-gray-300 mb-3">Client's Review</h4>
+                          <ReviewsList reviews={[jobReviews.clientReview]} />
+                        </div>
+                      )}
+                      
+                      {jobReviews.freelancerReview && (
+                        <div>
+                          <h4 className="text-lg font-semibold text-gray-300 mb-3">Freelancer's Review</h4>
+                          <ReviewsList reviews={[jobReviews.freelancerReview]} />
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-gray-400">No reviews available for this project yet.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -435,6 +574,24 @@ const FreelancerJobDetails = () => {
           </div>
         </div>
       )}
+
+      {/* Job Completion Modal */}
+      <JobCompletionModal
+        isOpen={isCompletionModalOpen}
+        onClose={() => setIsCompletionModalOpen(false)}
+        job={job}
+        userRole="freelancer"
+        onSubmitWork={handleSubmitWorkForCompletion}
+      />
+
+      {/* Review Modal */}
+      <ReviewModal
+        isOpen={isReviewModalOpen}
+        onClose={() => setIsReviewModalOpen(false)}
+        job={job}
+        recipient={{ _id: job.client, name: job.client.name }}
+        onSubmitReview={handleSubmitReview}
+      />
     </div>
   );
 };

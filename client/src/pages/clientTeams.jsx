@@ -66,10 +66,12 @@ const ClientTeams = () => {
   const handleTeamSelect = (team) => {
     setSelectedTeam(team);
     setSelectedMember(null);
+    console.log('Selected team:', team);
   };
 
   const handleMemberSelect = (member) => {
     setSelectedMember(member);
+    console.log('Selected member:', member);
   };
 
   const handleApproveMilestone = async (jobId, freelancerId, milestoneId) => {

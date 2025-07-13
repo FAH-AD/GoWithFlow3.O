@@ -110,6 +110,7 @@ const Navbar = () => {
           { name: "Dashboard", href: "/admin" },
           { name: "Users", href: "/admin/users" },
           { name: "Verify Users", href: "/admin/verify-users" },
+          { name: "Issues", href: "/admin/issues" },
           { name: "Reports", href: "/admin/reports" },
           { name: "Settings", href: "/admin/settings" },
         ];
@@ -119,6 +120,7 @@ const Navbar = () => {
           { name: "Find Talent", href: "/client/search-freelancers" },
           { name: "My Jobs", href: "/client/my-jobs" },
           { name: "Messages", href: "/client/messages" },
+          { name: "Support", href: "/client/support" },
         ];
       case "freelancer":
         return [
@@ -126,8 +128,8 @@ const Navbar = () => {
           { name: "Find Work", href: "/freelancer/search-job" },
           { name: "My Proposals", href: "/freelancer/my-proposals" },
           { name: "Hire Offers", href: "/freelancer/hire-offers" },
-
           { name: "Messages", href: "/freelancer/messages" },
+          { name: "Support", href: "/freelancer/support" },
         ];
       default:
         return [];

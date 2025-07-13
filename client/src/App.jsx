@@ -44,6 +44,8 @@ import HireOffers from './pages/HireOffers';
 import FreelancerJobs from './pages/FreelancerJobs';
 import FreelancerJobDetails from './pages/FreealncerJobDetails';
 import ClientJobDetails from './pages/ClientJobDetails';
+import SupportPage from './pages/SupportPage';
+import AdminIssueManagement from './pages/AdminIssueManagement';
 
 
 // Forgot Password Flow
@@ -58,6 +60,8 @@ export default function App() {
   const user = useSelector((state) => state.Auth.user);
 
   const isFreelancer = user?.role === 'freelancer';
+  const isClient = user?.role === 'client';
+  const isAdmin = user?.role === 'admin';
 
   useEffect(() => {
     if (token) {
@@ -70,8 +74,13 @@ export default function App() {
   useEffect(() => {
     console.log(user, "user in app")
   }, [user]);
-  const isClient = user?.role === 'client';
 
+   const RedirectLoggedInUser = () => {
+    if (isFreelancer) return <Navigate to="/freelancer" />;
+    if (isClient) return <Navigate to="/client" />;
+    if (isAdmin) return <Navigate to="/admin" />;
+    return <Home />;
+  };
   return (
     <>
       <BrowserRouter>
@@ -87,19 +96,18 @@ export default function App() {
             } />
           </Route> */}
 
-          <Route path="/" element={<PublicLayouts />}>
-            <Route index element={ <Home />} />
+         <Route path="/" element={<PublicLayouts />}>
+            <Route index element={<RedirectLoggedInUser />} />
             <Route path="login" element={<Login />} />
             <Route path="signup" element={<RoleSelection />} />
-            <Route path="signup/freelancer" element={<FreelancerRegister />} />
-            <Route path="signup/client" element={<ClientRegister />} />
+            <Route path="signup/freelancer" element={ <FreelancerRegister />} />
+            <Route path="signup/client" element={token ? <RedirectLoggedInUser /> : <ClientRegister />} />
             <Route path="forgot-password" element={<ForgotPassword />} />
             <Route path="verify-code" element={<VerifyCode />} />
             <Route path="reset-password" element={<ResetPassword />} />
             <Route path="about-us" element={<AboutUs />} />
             <Route path="how-it-works" element={<HowItWorks />} />
             <Route path="verify-email" element={<VerifyEmail />} />
-           
           </Route>
 
           {/* Admin Routes */}
@@ -107,6 +115,7 @@ export default function App() {
             <Route index element={<Admin />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="verify-users" element={<VerifyUsers />} />
+            <Route path="issues" element={<AdminIssueManagement />} />
           </Route>
           <Route path="/client" element={<UserLayout />}>
             <Route index element={<Client />} />
@@ -121,6 +130,7 @@ export default function App() {
             <Route path="messages" element={<Messaging />} />
             <Route path="messages/:conversationId" element={<Messaging />} />
             <Route path="profile/:userId" element={<ClientProfile />} />
+            <Route path="support" element={<SupportPage />} />
           </Route>
           
 
@@ -138,6 +148,7 @@ export default function App() {
             <Route path="messages" element={<Messaging />} />
             <Route path="messages/:conversationId" element={<Messaging />} />
             <Route path="profile/:userId" element={<FreelancerProfile />} />
+            <Route path="support" element={<SupportPage />} />
 
           </Route>
 

@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useRef } from "react"
-import { useSelector } from "react-redux"
-import {useDispatch} from "react-redux"
-import { useNavigate, useParams } from "react-router-dom"
+import { useState, useEffect, useRef } from "react";
+import { useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   setConversations,
   setSelectedConversation,
@@ -11,7 +11,7 @@ import {
   addMessage,
   updateMessage,
   clearNewMessages,
-} from '../redux/slices/messagingSlice';
+} from "../redux/slices/messagingSlice";
 import {
   Search,
   Send,
@@ -35,297 +35,320 @@ import {
   ImageIcon,
   MessageSquare,
   Users,
-} from "lucide-react"
-import Navbar from "../components/Navbar"
-import { format, isValid } from "date-fns"
-import webSocketSingleton from "../socket"
+} from "lucide-react";
+import Navbar from "../components/Navbar";
+import { format, isValid } from "date-fns";
+import webSocketSingleton from "../socket";
 
 // Socket.io connection
-let socket
+let socket;
 
 const Messaging = () => {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { conversationId } = useParams()
-  const user = useSelector((state) => state.Auth.user)
+  const { conversationId } = useParams();
+  const user = useSelector((state) => state.Auth.user);
 
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(true);
   // const [conversations, setConversations] = useState([])
-  const [filteredConversations, setFilteredConversations] = useState([])
+  const [filteredConversations, setFilteredConversations] = useState([]);
   // const [selectedConversation, setSelectedConversation] = useState(null)
   // const [messages, setMessages] = useState([])
-  const [newMessage, setNewMessage] = useState("")
-  const [searchQuery, setSearchQuery] = useState("")
-  const [showUserInfo, setShowUserInfo] = useState(false)
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
-  const [showAttachmentOptions, setShowAttachmentOptions] = useState(false)
-  const [filter, setFilter] = useState("all")
-  const [isRecording, setIsRecording] = useState(false)
-  const [recordingTime, setRecordingTime] = useState(0)
-  const [recordingInterval, setRecordingInterval] = useState(null)
-  const [page, setPage] = useState(1)
-  const [hasMoreMessages, setHasMoreMessages] = useState(true)
-  const [isSending, setIsSending] = useState(false)
-  const [error, setError] = useState(null)
-  const selectedConversation=useSelector((state) => state.messaging.selectedConversation)
+  const [newMessage, setNewMessage] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showUserInfo, setShowUserInfo] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showAttachmentOptions, setShowAttachmentOptions] = useState(false);
+  const [filter, setFilter] = useState("all");
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [recordingInterval, setRecordingInterval] = useState(null);
+  const [page, setPage] = useState(1);
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
+  const [isSending, setIsSending] = useState(false);
+  const [error, setError] = useState(null);
+  const selectedConversation = useSelector(
+    (state) => state.messaging.selectedConversation
+  );
   const messages = useSelector((state) => state.messaging.messages || []);
+  const [showZoomPopup, setShowZoomPopup] = useState(false);
+  const [zoomTopic, setZoomTopic] = useState("");
+  const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
+  const [meetingData, setMeetingData] = useState(null);
 
-
-
-  const conversations=useSelector((state) => state.messaging.conversations)
+  const conversations = useSelector((state) => state.messaging.conversations);
 
   // console.log(messages,'ae ne message')
-  const messagesEndRef = useRef(null)
-  const fileInputRef = useRef(null)
-  const messageInputRef = useRef(null)
-  const messagesContainerRef = useRef(null)
-  const token = localStorage.getItem("authToken")
-  //messages chats redux store 
-  
+  const messagesEndRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const messageInputRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+  const token = localStorage.getItem("authToken");
+  //messages chats redux store
+
   // Check if user is authenticated
   useEffect(() => {
     if (!user) {
-      navigate("/login", { state: { from: "/messaging", message: "Please login to access messaging" } })
-      return
+      navigate("/login", {
+        state: {
+          from: "/messaging",
+          message: "Please login to access messaging",
+        },
+      });
+      return;
     }
 
     // Initialize socket connection
-   
+
     // Fetch conversations
-    fetchConversations()
+    fetchConversations();
 
     // If conversationId is provided in URL, load that conversation
     if (conversationId) {
-      fetchConversationById(conversationId)
+      fetchConversationById(conversationId);
     }
 
     // Cleanup on unmount
     return () => {
       if (socket) {
-        socket.disconnect()
+        socket.disconnect();
       }
       if (recordingInterval) {
-        clearInterval(recordingInterval)
+        clearInterval(recordingInterval);
       }
-    }
-  }, [user, navigate, conversationId])
+    };
+  }, [user, navigate, conversationId]);
 
   // Initialize Socket.io connection
 
-
   // Fetch all conversations
   const fetchConversations = async () => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      const response = await fetch("http://localhost:5000/api/messages/conversations", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
+      const response = await fetch(
+        "http://localhost:5000/api/messages/conversations",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)``
+        throw new Error(`HTTP error! status: ${response.status}`)``;
       }
 
-      const data = await response.json()
+      const data = await response.json();
       // console.log("Conversations API response:", data.message.conversations) // Debug log
 
       if (!data || !data.data || !Array.isArray(data.message.conversations)) {
-        throw new Error("Invalid response structure")
+        throw new Error("Invalid response structure");
       }
 
       // setConversations(data.message.conversations)
-      dispatch(setConversations(data.message.conversations))
-      setFilteredConversations(data.message.conversations)
+      dispatch(setConversations(data.message.conversations));
+      setFilteredConversations(data.message.conversations);
 
       // If no conversation is selected and we have conversations, select the first one
-      if (!selectedConversation && data.message.conversations.length > 0 && !conversationId) {
-        handleSelectConversation(data.message.conversations[0])
+      if (
+        !selectedConversation &&
+        data.message.conversations.length > 0 &&
+        !conversationId
+      ) {
+        handleSelectConversation(data.message.conversations[0]);
       }
     } catch (err) {
-      console.error("Failed to fetch conversations:", err)
-      setError("Failed to load conversations. Please try again.")
+      console.error("Failed to fetch conversations:", err);
+      setError("Failed to load conversations. Please try again.");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   // Fetch a specific conversation by ID
   const fetchConversationById = async (id) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/messages/conversations/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
+      const response = await fetch(
+        `http://localhost:5000/api/messages/conversations/${id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       if (!response.ok) {
-        throw new Error("Failed to fetch conversation")
+        throw new Error("Failed to fetch conversation");
       }
 
-      const data = await response.json()
-      console.log("Conversation API response:", data) // Debug log
+      const data = await response.json();
+      console.log("Conversation API response:", data); // Debug log
 
       // Find the conversation in our list or fetch it if not found
-      const conversation = conversations.find((c) => c._id === id)
+      const conversation = conversations.find((c) => c._id === id);
 
-      
       // setSelectedConversation(conversation)
-      dispatch(setSelectedConversation(conversation))
-      dispatch(setMessages(data.message.messages))
-      scrollToBottom()
+      dispatch(setSelectedConversation(conversation));
+      dispatch(setMessages(data.message.messages));
+      scrollToBottom();
 
       // Join the conversation room
-      
     } catch (err) {
-      console.error("Failed to fetch conversation:", err)
-      setError("Failed to load conversation. Please try again.")
+      console.error("Failed to fetch conversation:", err);
+      setError("Failed to load conversation. Please try again.");
     }
-  }
+  };
 
   useEffect(() => {
-    console.log(conversations,'these are convos')
-  },[conversations])
+    console.log(conversations, "these are convos");
+  }, [conversations]);
   // Fetch messages for a conversation
   const fetchMessages = async (conversationId, page = 1) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/messages/conversations/${conversationId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
+      const response = await fetch(
+        `http://localhost:5000/api/messages/conversations/${conversationId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       if (!response.ok) {
-        throw new Error("Failed to fetch messages")
+        throw new Error("Failed to fetch messages");
       }
-      const data = await response.json()
-      console.log("Messages API response:", data) // Debug log
+      const data = await response.json();
+      console.log("Messages API response:", data); // Debug log
 
       if (page === 1) {
-        dispatch(setMessages(data.message.messages ));
-        scrollToBottom()
+        dispatch(setMessages(data.message.messages));
+        scrollToBottom();
       } else {
         // Prepend older messages
-        dispatch(setMessages(
-        
-           [...data.message.messages, ...messages] 
-        ));
+        dispatch(setMessages([...data.message.messages, ...messages]));
       }
 
       // Check if there are more messages to load
-      setHasMoreMessages(data.message.page < data.message.totalPages)
+      setHasMoreMessages(data.message.page < data.message.totalPages);
     } catch (err) {
-      console.error("Failed to fetch messages:", err)
-      setError("Failed to load messages. Please try again.")
+      console.error("Failed to fetch messages:", err);
+      setError("Failed to load messages. Please try again.");
     }
-  }
+  };
 
   // Load more messages when scrolling up
   const handleLoadMoreMessages = () => {
     if (hasMoreMessages && selectedConversation) {
-      const nextPage = page + 1
-      setPage(nextPage)
-      fetchMessages(selectedConversation._id, nextPage)
+      const nextPage = page + 1;
+      setPage(nextPage);
+      fetchMessages(selectedConversation._id, nextPage);
     }
-  }
+  };
 
   // Handle selecting a conversation
   const handleSelectConversation = (conversation) => {
     // setSelectedConversation(conversation)
-    dispatch(setSelectedConversation(conversation))
-    setPage(1)
-    setHasMoreMessages(true)
-    fetchMessages(conversation._id, 1)
+    dispatch(setSelectedConversation(conversation));
+    setPage(1);
+    setHasMoreMessages(true);
+    fetchMessages(conversation._id, 1);
 
     // Join the conversation room
 
     // Update URL without reloading
-    navigate(`/client/messages/${conversation._id}`, { replace: true })
+    navigate(`/client/messages/${conversation._id}`, { replace: true });
 
     // Reset unread count for this conversation
     if (conversation.unreadCount > 0) {
       // Update locally
       // setConversations((prev) => prev.map((c) => (c._id === conversation._id ? { ...c, unreadCount: 0 } : c)))
-      dispatch(setConversations((prev) => prev.map((c) => (c._id === conversation._id ? { ...c, unreadCount: 0 } : c))))
-      setFilteredConversations((prev) => prev.map((c) => (c._id === conversation._id ? { ...c, unreadCount: 0 } : c)))
+      dispatch(
+        setConversations((prev) =>
+          prev.map((c) =>
+            c._id === conversation._id ? { ...c, unreadCount: 0 } : c
+          )
+        )
+      );
+      setFilteredConversations((prev) =>
+        prev.map((c) =>
+          c._id === conversation._id ? { ...c, unreadCount: 0 } : c
+        )
+      );
     }
 
     // Close user info panel on mobile
     if (window.innerWidth < 768) {
-      setShowUserInfo(false)
+      setShowUserInfo(false);
     }
-  }
+  };
 
   // Create a new conversation
   const createConversation = async (userId, jobId = null) => {
     try {
-      const payload = { userId }
-      if (jobId) payload.jobId = jobId
+      const payload = { userId };
+      if (jobId) payload.jobId = jobId;
 
-      const response = await fetch("http://localhost:5000/api/messages/conversations", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      })
+      const response = await fetch(
+        "http://localhost:5000/api/messages/conversations",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        }
+      );
 
       if (!response.ok) {
-        throw new Error("Failed to create conversation")
+        throw new Error("Failed to create conversation");
       }
 
-      const data = await response.json()
+      const data = await response.json();
 
       // Add to conversations list and select it
       // setConversations((prev) => [data.data.conversation, ...prev])
-      dispatch(setConversations((prev) => [data.data.conversation, ...prev]))
-      setFilteredConversations((prev) => [data.data.conversation, ...prev])
-      handleSelectConversation(data.data.conversation)
+      dispatch(setConversations((prev) => [data.data.conversation, ...prev]));
+      setFilteredConversations((prev) => [data.data.conversation, ...prev]);
+      handleSelectConversation(data.data.conversation);
 
-      return data.data.conversation
+      return data.data.conversation;
     } catch (err) {
-      console.error("Failed to create conversation:", err)
-      setError("Failed to start conversation. Please try again.")
-      return null
+      console.error("Failed to create conversation:", err);
+      setError("Failed to start conversation. Please try again.");
+      return null;
     }
-  }
+  };
 
   // Send a message
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedConversation || isSending) return
+  const sendMessage = async (customMessage = null) => {
+    const messageToSend = customMessage || newMessage.trim();
+    if (!messageToSend || !selectedConversation || isSending) return;
 
-    const trimmedMessage = newMessage.trim()
-    setIsSending(true)
+    setIsSending(true);
 
     try {
-      const tempId = `temp-${Date.now()}`
-      const currentTime = new Date().toISOString()
-      console.log(user._id)
+      const tempId = `temp-${Date.now()}`;
+      const currentTime = new Date().toISOString();
 
       const tempMessage = {
         _id: tempId,
         sender: {
           _id: user._id,
-       
           name: user.name,
           profileImage: user.profilePic,
         },
-        content: trimmedMessage,
+        content: messageToSend,
         createdAt: currentTime,
         timestamp: currentTime,
         isRead: false,
         status: "sent",
         isTempMessage: true,
-      } 
+      };
 
-      console.log("Temp message:", tempMessage) // Debug log
-
-      
-
-      dispatch(addMessage(tempMessage ));
-      scrollToBottom()
-      setNewMessage("")
+      dispatch(addMessage(tempMessage));
+      scrollToBottom();
+      if (!customMessage) setNewMessage(""); // Only clear if it's not a custom message
 
       const response = await fetch("http://localhost:5000/api/messages", {
         method: "POST",
@@ -335,68 +358,79 @@ const Messaging = () => {
         },
         body: JSON.stringify({
           conversation: selectedConversation._id,
-          content: trimmedMessage,
+          content: messageToSend,
         }),
-      })
+      });
 
       if (!response.ok) {
-        throw new Error("Failed to send message")
+        throw new Error("Failed to send message");
       }
 
-      const data = await response.json()
-      console.log("Message sent successfully:", data)
+      const data = await response.json();
+      console.log("Message sent successfully:", data);
+
       const otherParticipant = selectedConversation.participants.find(
-      (p) => p._id !== data.message.message.sender._id // or sender.id
-    );
+        (p) => p._id !== data.message.message.sender._id
+      );
 
       const otherParticipantId = otherParticipant?._id;
 
-      console.log("receiver id",selectedConversation.participants[1]._id)
-       webSocketSingleton.sendMessage({conversationId: selectedConversation._id, message: data.message.message, receiverId: otherParticipantId})
-      // Replace temp message with real message
-           // Update conversation with new message
+      webSocketSingleton.sendMessage({
+        conversationId: selectedConversation._id,
+        message: data.message.message,
+        receiverId: otherParticipantId,
+      });
 
+      // Update messages with the sent message
+      dispatch(
+        updateMessage({
+          conversationId: selectedConversation._id,
+          tempId: tempId,
+          updatedMessage: { ...data.message.message, status: "sent" },
+        })
+      );
 
       // Update conversation with new message
-
-      setMessages((prevMessages) =>
-        prevMessages.map((msg) => (msg._id.startsWith("temp-") ? { ...msg, status: "sent" } : msg)),
-      )
-      updateConversationWithNewMessage(selectedConversation._id, data.message)
+      updateConversationWithNewMessage(
+        selectedConversation._id,
+        data.message.message
+      );
     } catch (error) {
-      console.error("Failed to send message:", error)
-
-      setMessages((prevMessages) =>
-        prevMessages.map((msg) => (msg._id.startsWith("temp-") ? { ...msg, status: "failed" } : msg)),
-      )
-
-      setError("Failed to send message. Please try again.")
+      console.error("Failed to send message:", error);
+      dispatch(
+        updateMessage({
+          conversationId: selectedConversation._id,
+          tempId: tempId,
+          updatedMessage: { ...tempMessage, status: "failed" },
+        })
+      );
+      setError("Failed to send message. Please try again.");
     } finally {
-      setIsSending(false)
+      setIsSending(false);
     }
-  }
+  };
 
   // Handle file upload
   const handleFileUpload = async (e) => {
-    if (!selectedConversation) return
+    if (!selectedConversation) return;
 
-    const files = e.target.files
-    if (!files || files.length === 0) return
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-    setIsSending(true)
+    setIsSending(true);
 
     try {
-      const formData = new FormData()
-      formData.append("conversationId", selectedConversation._id)
-      formData.append("senderId", user._id)
+      const formData = new FormData();
+      formData.append("conversationId", selectedConversation._id);
+      formData.append("senderId", user._id);
 
       // Add files to form data
       for (let i = 0; i < files.length; i++) {
-        formData.append("files", files[i])
+        formData.append("files", files[i]);
       }
 
       // Optimistically add message to UI
-      const tempId = `temp-${Date.now()}`
+      const tempId = `temp-${Date.now()}`;
       const tempMessage = {
         _id: tempId,
         sender: user._id,
@@ -411,13 +445,15 @@ const Messaging = () => {
           fileSize: file.size,
           tempUrl: URL.createObjectURL(file),
         })),
-      }
-      dispatch(updateMessage({
-        conversationId: selectedConversation._id,
-        tempId: tempId,
-        updatedMessage: { ...tempMessage, status: "failed" }
-      }));
-      scrollToBottom()
+      };
+      dispatch(
+        updateMessage({
+          conversationId: selectedConversation._id,
+          tempId: tempId,
+          updatedMessage: { ...tempMessage, status: "failed" },
+        })
+      );
+      scrollToBottom();
 
       // Send files to server
       const response = await fetch("http://localhost:5000/api/messages", {
@@ -426,295 +462,395 @@ const Messaging = () => {
           Authorization: `Bearer ${token}`,
         },
         body: formData,
-      })
+      });
 
       if (!response.ok) {
-        throw new Error("Failed to send files")
+        throw new Error("Failed to send files");
       }
 
-      const data = await response.json()
+      const data = await response.json();
 
       // Replace temp message with actual message
-      setMessages((prev) => prev.map((msg) => (msg._id === tempId ? { ...data, status: "sent" } : msg)))
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg._id === tempId ? { ...data, status: "sent" } : msg
+        )
+      );
 
       // Update conversation with new message
-      updateConversationWithNewMessage(selectedConversation._id, data)
+      updateConversationWithNewMessage(selectedConversation._id, data);
 
       // Emit socket event
-      
 
       // Reset file input
       if (fileInputRef.current) {
-        fileInputRef.current.value = ""
+        fileInputRef.current.value = "";
       }
     } catch (err) {
-      console.error("Failed to send files:", err)
+      console.error("Failed to send files:", err);
 
       // Mark temp message as failed
-      setMessages((prev) => prev.map((msg) => (msg._id === tempId ? { ...msg, status: "failed" } : msg)))
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg._id === tempId ? { ...msg, status: "failed" } : msg
+        )
+      );
 
-      setError("Failed to send files. Please try again.")
+      setError("Failed to send files. Please try again.");
     } finally {
-      setIsSending(false)
-      setShowAttachmentOptions(false)
+      setIsSending(false);
+      setShowAttachmentOptions(false);
     }
-  }
+  };
 
   // Update conversation list with new message
   const updateConversationWithNewMessage = (conversationId, message) => {
-   dispatch( setConversations((prev) => {
-      const updated = prev.map((conv) => {
-        if (conv._id === conversationId) {
-          // Increment unread count if message is from other user and conversation is not selected
-          const isFromOtherUser = message.sender !== user._id
-          const isCurrentConversation = selectedConversation && selectedConversation._id === conversationId
+    dispatch(
+      setConversations((prev) => {
+        const updated = prev.map((conv) => {
+          if (conv._id === conversationId) {
+            // Increment unread count if message is from other user and conversation is not selected
+            const isFromOtherUser = message.sender !== user._id;
+            const isCurrentConversation =
+              selectedConversation &&
+              selectedConversation._id === conversationId;
 
-          return {
-            ...conv,
-            lastMessage: message,
-            unreadCount:
-              isFromOtherUser && !isCurrentConversation ? (conv.unreadCount || 0) + 1 : conv.unreadCount || 0,
+            return {
+              ...conv,
+              lastMessage: message,
+              unreadCount:
+                isFromOtherUser && !isCurrentConversation
+                  ? (conv.unreadCount || 0) + 1
+                  : conv.unreadCount || 0,
+            };
           }
-        }
-        return conv
-      })
+          return conv;
+        });
 
-      // Sort conversations to put the one with new message at top
-      return updated.sort((a, b) => {
-        if (a._id === conversationId) return -1
-        if (b._id === conversationId) return 1
-        return new Date(b.updatedAt) - new Date(a.updatedAt)
+        // Sort conversations to put the one with new message at top
+        return updated.sort((a, b) => {
+          if (a._id === conversationId) return -1;
+          if (b._id === conversationId) return 1;
+          return new Date(b.updatedAt) - new Date(a.updatedAt);
+        });
       })
-    })
-  )
+    );
     // Also update filtered conversations
     setFilteredConversations((prev) => {
       const updated = prev.map((conv) => {
         if (conv._id === conversationId) {
-          const isFromOtherUser = message.sender !== user._id
-          const isCurrentConversation = selectedConversation && selectedConversation._id === conversationId
+          const isFromOtherUser = message.sender !== user._id;
+          const isCurrentConversation =
+            selectedConversation && selectedConversation._id === conversationId;
 
           return {
             ...conv,
             lastMessage: message,
             unreadCount:
-              isFromOtherUser && !isCurrentConversation ? (conv.unreadCount || 0) + 1 : conv.unreadCount || 0,
-          }
+              isFromOtherUser && !isCurrentConversation
+                ? (conv.unreadCount || 0) + 1
+                : conv.unreadCount || 0,
+          };
         }
-        return conv
-      })
+        return conv;
+      });
 
       // Sort conversations to put the one with new message at top
       return updated.sort((a, b) => {
-        if (a._id === conversationId) return -1
-        if (b._id === conversationId) return 1
-        return new Date(b.updatedAt) - new Date(a.updatedAt)
-      })
-    })
-  }
+        if (a._id === conversationId) return -1;
+        if (b._id === conversationId) return 1;
+        return new Date(b.updatedAt) - new Date(a.updatedAt);
+      });
+    });
+  };
 
   // Delete a message
   const deleteMessage = async (messageId) => {
-    if (!messageId) return
+    if (!messageId) return;
 
     try {
-      const response = await fetch(`http://localhost:5000/api/messages/${messageId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
+      const response = await fetch(
+        `http://localhost:5000/api/messages/${messageId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       if (!response.ok) {
-        throw new Error("Failed to delete message")
+        throw new Error("Failed to delete message");
       }
 
       // Remove message from UI
-      setMessages((prev) => prev.filter((msg) => msg._id !== messageId))
+      setMessages((prev) => prev.filter((msg) => msg._id !== messageId));
 
       // Emit socket event
-     
     } catch (err) {
-      console.error("Failed to delete message:", err)
-      setError("Failed to delete message. Please try again.")
+      console.error("Failed to delete message:", err);
+      setError("Failed to delete message. Please try again.");
     }
-  }
+  };
 
   // Delete a conversation
   const deleteConversation = async (conversationId) => {
-    if (!conversationId) return
+    if (!conversationId) return;
 
     try {
-      const response = await fetch(`http://localhost:5000/api/messages/conversations/${conversationId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
+      const response = await fetch(
+        `http://localhost:5000/api/messages/conversations/${conversationId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       if (!response.ok) {
-        throw new Error("Failed to delete conversation")
+        throw new Error("Failed to delete conversation");
       }
 
       // Remove conversation from UI
-      console.log("conversaton",)
+      console.log("conversaton");
       // setConversations((prev) => prev.filter((conv) => conv._id !== conversationId))
-      dispatch(setConversations((prev) => prev.filter((conv) => conv._id !== conversationId)))
-      setFilteredConversations((prev) => prev.filter((conv) => conv._id !== conversationId))
+      dispatch(
+        setConversations((prev) =>
+          prev.filter((conv) => conv._id !== conversationId)
+        )
+      );
+      setFilteredConversations((prev) =>
+        prev.filter((conv) => conv._id !== conversationId)
+      );
 
       // If the deleted conversation was selected, clear selection
       if (selectedConversation && selectedConversation._id === conversationId) {
         // setSelectedConversation(null)
-        dispatch(setSelectedConversation(null))
-        setMessages([])
-        navigate("/client/messages", { replace: true })
+        dispatch(setSelectedConversation(null));
+        setMessages([]);
+        navigate("/client/messages", { replace: true });
       }
     } catch (err) {
-      console.error("Failed to delete conversation:", err)
-      setError("Failed to delete conversation. Please try again.")
+      console.error("Failed to delete conversation:", err);
+      setError("Failed to delete conversation. Please try again.");
     }
-  }
+  };
 
   // Handle search
   const handleSearch = (e) => {
-    const query = e.target.value.toLowerCase()
-    setSearchQuery(query)
+    const query = e.target.value.toLowerCase();
+    setSearchQuery(query);
 
     if (!query.trim()) {
-      setFilteredConversations(conversations)
-      return
+      setFilteredConversations(conversations);
+      return;
     }
 
     const filtered = conversations.filter((conv) => {
       // Search in participant names
-      const fullName = conv.participants.find((p) => p._id !== user._id)?.name || ""
+      const fullName =
+        conv.participants.find((p) => p._id !== user._id)?.name || "";
 
       // Search in last message
-      const lastMessageContent = conv.lastMessage?.content?.toLowerCase() || ""
+      const lastMessageContent = conv.lastMessage?.content?.toLowerCase() || "";
 
       // Search in job title if exists
-      const jobTitle = conv.job?.title?.toLowerCase() || ""
+      const jobTitle = conv.job?.title?.toLowerCase() || "";
 
-      return fullName.includes(query) || lastMessageContent.includes(query) || jobTitle.includes(query)
-    })
+      return (
+        fullName.includes(query) ||
+        lastMessageContent.includes(query) ||
+        jobTitle.includes(query)
+      );
+    });
 
-    setFilteredConversations(filtered)
-  }
+    setFilteredConversations(filtered);
+  };
 
   // Handle filter change
   const handleFilterChange = (newFilter) => {
-    setFilter(newFilter)
+    setFilter(newFilter);
 
     if (newFilter === "all") {
-      setFilteredConversations(conversations)
+      setFilteredConversations(conversations);
     } else if (newFilter === "unread") {
-      setFilteredConversations(conversations.filter((c) => c.unreadCount > 0))
+      setFilteredConversations(conversations.filter((c) => c.unreadCount > 0));
     } else if (newFilter === "starred") {
-      setFilteredConversations(conversations.filter((c) => c.isStarred))
+      setFilteredConversations(conversations.filter((c) => c.isStarred));
     }
-  }
+  };
 
   // Toggle star conversation
   const toggleStar = (conversation, e) => {
-    e.stopPropagation()
+    e.stopPropagation();
 
     // In a real app, you would make an API call to update the star status
     // For now, we'll just update the UI
 
     // setConversations((prev) => prev.map((c) => (c._id === conversation._id ? { ...c, isStarred: !c.isStarred } : c)))
-    dispatch(setConversations((prev) => prev.map((c) => (c._id === conversation._id ? { ...c, isStarred: !c.isStarred } : c))))
+    dispatch(
+      setConversations((prev) =>
+        prev.map((c) =>
+          c._id === conversation._id ? { ...c, isStarred: !c.isStarred } : c
+        )
+      )
+    );
 
     setFilteredConversations((prev) =>
-      prev.map((c) => (c._id === conversation._id ? { ...c, isStarred: !c.isStarred } : c)),
-    )
+      prev.map((c) =>
+        c._id === conversation._id ? { ...c, isStarred: !c.isStarred } : c
+      )
+    );
 
     if (selectedConversation && selectedConversation._id === conversation._id) {
-     dispatch(setSelectedConversation({ ...selectedConversation, isStarred: !selectedConversation.isStarred }))
+      dispatch(
+        setSelectedConversation({
+          ...selectedConversation,
+          isStarred: !selectedConversation.isStarred,
+        })
+      );
     }
-  }
+  };
 
   // Scroll to bottom of messages
   const scrollToBottom = () => {
     setTimeout(() => {
       if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
+        messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
       }
-    }, 100)
-  }
+    }, 100);
+  };
 
   // Format time for messages
 
-const formatMessageTime = (dateString) => {
-  if (!dateString) return "Unknown";
+  const formatMessageTime = (dateString) => {
+    if (!dateString) return "Unknown";
 
-  const date = new Date(dateString);
-  if (!isValid(date)) {
-    console.error("Invalid date:", dateString);
-    return "Unknown";
-  }
+    const date = new Date(dateString);
+    if (!isValid(date)) {
+      console.error("Invalid date:", dateString);
+      return "Unknown";
+    }
 
-  const now = new Date();
+    const now = new Date();
 
-  // If today, show time like "2:30 PM"
-  if (date.toDateString() === now.toDateString()) {
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  }
+    // If today, show time like "2:30 PM"
+    if (date.toDateString() === now.toDateString()) {
+      return date.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
 
-  // If yesterday, show "Yesterday"
-  const yesterday = new Date();
-  yesterday.setDate(now.getDate() - 1);
-  if (date.toDateString() === yesterday.toDateString()) {
-    return "Yesterday";
-  }
+    // If yesterday, show "Yesterday"
+    const yesterday = new Date();
+    yesterday.setDate(now.getDate() - 1);
+    if (date.toDateString() === yesterday.toDateString()) {
+      return "Yesterday";
+    }
 
-  // If within last 6 days (this week), show weekday name (e.g., "Mon", "Tue")
-  const sixDaysAgo = new Date();
-  sixDaysAgo.setDate(now.getDate() - 6);
-  if (date >= sixDaysAgo && date < now) {
-    return date.toLocaleDateString([], { weekday: "short" });
-  }
+    // If within last 6 days (this week), show weekday name (e.g., "Mon", "Tue")
+    const sixDaysAgo = new Date();
+    sixDaysAgo.setDate(now.getDate() - 6);
+    if (date >= sixDaysAgo && date < now) {
+      return date.toLocaleDateString([], { weekday: "short" });
+    }
 
-  // Otherwise show short date like "Apr 25"
-  return date.toLocaleDateString([], { month: "short", day: "numeric" });
-};
-
+    // Otherwise show short date like "Apr 25"
+    return date.toLocaleDateString([], { month: "short", day: "numeric" });
+  };
 
   // Format time for conversations
   const formatConversationTime = (dateString) => {
-    if (!dateString) return "Unknown"
+    if (!dateString) return "Unknown";
 
-    const date = new Date(dateString)
+    const date = new Date(dateString);
     if (!isValid(date)) {
-      console.error("Invalid date:", dateString)
-      return "Unknown"
+      console.error("Invalid date:", dateString);
+      return "Unknown";
     }
-    return format(date, "HH:mm")
-  }
+    return format(date, "HH:mm");
+  };
 
   // Get message status icon
   const getMessageStatusIcon = (status) => {
     switch (status) {
       case "sending":
-        return <Clock size={14} className="text-gray-400" />
+        return <Clock size={14} className="text-gray-400" />;
       case "sent":
-        return <Check size={14} className="text-gray-400" />
+        return <Check size={14} className="text-gray-400" />;
       case "delivered":
-        return <Check size={14} className="text-gray-400" />
+        return <Check size={14} className="text-gray-400" />;
       case "read":
-        return <CheckCheck size={14} className="text-[#9333EA]" />
+        return <CheckCheck size={14} className="text-[#9333EA]" />;
       case "failed":
-        return <X size={14} className="text-red-500" />
+        return <X size={14} className="text-red-500" />;
       default:
-        return null
+        return null;
     }
-  }
+  };
+
+  const createZoomMeeting = async (topic) => {
+    try {
+      const response = await fetch("http://localhost:5000/api/zoom/meeting", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`, // Assuming you have the token available
+        },
+        body: JSON.stringify({ topic: topic }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create Zoom meeting");
+      }
+
+      const data = await response.json();
+      return {
+        start_url: data.start_url,
+        id: data.id,
+        password: data.password,
+        topic: data.topic,
+      };
+    } catch (error) {
+      console.error("Error creating Zoom meeting:", error);
+      throw error;
+    }
+  };
+
+  const handleCreateZoomMeeting = async () => {
+    if (!zoomTopic.trim() || !selectedConversation) return;
+    setIsCreatingMeeting(true);
+    try {
+      const meetingData = await createZoomMeeting(zoomTopic);
+  
+      setMeetingData(meetingData);
+    
+
+      // Prepare the message content
+
+      const messageContent = `
+Zoom Meeting Created:
+Topic: ${meetingData.topic}
 
 
+
+`;
+      // Send the Zoom meeting link as a message
+      // await sendMessage(messageContent);
+    } catch (error) {
+      console.error("Failed to create Zoom meeting:", error);
+      setError("Failed to create Zoom meeting. Please try again.");
+    } finally {
+      setIsCreatingMeeting(false);
+    }
+  };
   // Get other participant in conversation
   const getOtherParticipant = (conversation) => {
-    if (!conversation || !conversation.participants) return null
-    return conversation.participants.find((p) => p._id !== user._id)
-  }
+    if (!conversation || !conversation.participants) return null;
+    return conversation.participants.find((p) => p._id !== user._id);
+  };
 
   if (isLoading) {
     return (
@@ -724,7 +860,7 @@ const formatMessageTime = (dateString) => {
           <p className="mt-4 text-white">Loading messages...</p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -760,7 +896,10 @@ const formatMessageTime = (dateString) => {
         {error && (
           <div className="bg-red-900/20 border border-red-800 text-red-400 px-4 py-2 text-sm">
             {error}
-            <button onClick={() => setError(null)} className="ml-2 text-red-400 hover:text-red-300">
+            <button
+              onClick={() => setError(null)}
+              className="ml-2 text-red-400 hover:text-red-300"
+            >
               <X size={16} />
             </button>
           </div>
@@ -831,25 +970,31 @@ const formatMessageTime = (dateString) => {
                     {filter === "all"
                       ? "Start a new conversation by messaging a freelancer"
                       : filter === "unread"
-                        ? "You have no unread messages"
-                        : "You have no starred conversations"}
+                      ? "You have no unread messages"
+                      : "You have no starred conversations"}
                   </p>
                 </div>
               ) : (
                 filteredConversations?.map((conversation) => {
-                  const otherParticipant = getOtherParticipant(conversation)
+                  const otherParticipant = getOtherParticipant(conversation);
                   return (
                     <div
                       key={conversation._id}
                       onClick={() => handleSelectConversation(conversation)}
                       className={`flex items-center p-4 border-b border-[#2d2d3a] cursor-pointer hover:bg-[#1e1e2d] transition-colors ${
-                        selectedConversation && selectedConversation._id === conversation._id ? "bg-[#1e1e2d]" : ""
+                        selectedConversation &&
+                        selectedConversation._id === conversation._id
+                          ? "bg-[#1e1e2d]"
+                          : ""
                       }`}
                     >
                       <div className="relative mr-3">
                         <div className="h-12 w-12 rounded-full overflow-hidden">
                           <img
-                            src={otherParticipant?.profilePic || "/placeholder.svg?height=48&width=48"}
+                            src={
+                              otherParticipant?.profilePic ||
+                              "/placeholder.svg?height=48&width=48"
+                            }
                             alt={`${otherParticipant?.name || "User"}'s avatar`}
                             className="h-full w-full object-cover"
                           />
@@ -861,7 +1006,9 @@ const formatMessageTime = (dateString) => {
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-center">
                           <h3 className="font-medium truncate">
-                            {otherParticipant ? `${otherParticipant.name}` : "Unknown User"}
+                            {otherParticipant
+                              ? `${otherParticipant.name}`
+                              : "Unknown User"}
                           </h3>
                           <div className="flex items-center">
                             {/* <button
@@ -881,10 +1028,16 @@ const formatMessageTime = (dateString) => {
                         </div>
                         <div className="flex justify-between items-center mt-1">
                           <p
-                            className={`text-sm truncate ${conversation.unreadCount > 0 ? "text-white font-medium" : "text-gray-400"}`}
+                            className={`text-sm truncate ${
+                              conversation.unreadCount > 0
+                                ? "text-white font-medium"
+                                : "text-gray-400"
+                            }`}
                           >
-                            {conversation.lastMessage?.sender === user._id && "You: "}
-                            {conversation.lastMessage?.content || "No messages yet"}
+                            {conversation.lastMessage?.sender === user._id &&
+                              "You: "}
+                            {conversation.lastMessage?.content ||
+                              "No messages yet"}
                           </p>
                           {conversation.unreadCount > 0 && (
                             <span className="bg-[#9333EA] text-white text-xs font-bold px-2 py-0.5 rounded-full">
@@ -893,11 +1046,13 @@ const formatMessageTime = (dateString) => {
                           )}
                         </div>
                         {conversation.job && (
-                          <p className="text-xs text-gray-500 mt-1 truncate">{conversation.job.title}</p>
+                          <p className="text-xs text-gray-500 mt-1 truncate">
+                            {conversation.job.title}
+                          </p>
                         )}
                       </div>
                     </div>
-                  )
+                  );
                 })
               )}
             </div>
@@ -905,7 +1060,11 @@ const formatMessageTime = (dateString) => {
 
           {/* Chat Area */}
           {selectedConversation ? (
-            <div className={`flex-1 flex flex-col h-[80vh] ${!selectedConversation && window.innerWidth < 768 ? "hidden" : ""}`}>
+            <div
+              className={`flex-1 flex flex-col overflowX-auto maxW-[400px] h-[80vh] ${
+                !selectedConversation && window.innerWidth < 768 ? "hidden" : ""
+              }`}
+            >
               {/* Chat Header */}
               <div className="p-4 border-b border-[#2d2d3a] flex items-center justify-between">
                 <div className="flex items-center">
@@ -922,10 +1081,14 @@ const formatMessageTime = (dateString) => {
                       {getOtherParticipant(selectedConversation) ? (
                         <img
                           src={
-                            getOtherParticipant(selectedConversation)?.profilePic ||
+                            getOtherParticipant(selectedConversation)
+                              ?.profilePic ||
                             "/placeholder.svg?height=40&width=40"
                           }
-                          alt={`${getOtherParticipant(selectedConversation)?.name || "User"}`}
+                          alt={`${
+                            getOtherParticipant(selectedConversation)?.name ||
+                            "User"
+                          }`}
                           className="h-full w-full object-cover"
                         />
                       ) : (
@@ -947,18 +1110,81 @@ const formatMessageTime = (dateString) => {
                     <p className="text-xs text-gray-400">
                       {/* {getOtherParticipant(selectedConversation)?.isOnline ? "Online" : "Offline"} */}
                       {selectedConversation.job && (
-                        <>
-                          
-                          {selectedConversation.job.title}
-                        </>
+                        <>{selectedConversation.job.title}</>
                       )}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button className="p-2 rounded-full hover:bg-[#1e1e2d] transition-colors">
+                  <button
+                    onClick={() => setShowZoomPopup(true)}
+                    className="p-2 rounded-full hover:bg-[#1e1e2d] transition-colors"
+                  >
                     <Phone size={18} />
                   </button>
+
+                  {showZoomPopup && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                      <div className="bg-[#1e1e2d] p-6 rounded-lg w-96">
+                        <div className="flex justify-between items-center mb-4">
+                          <h3 className="text-lg font-semibold">
+                            Create Zoom Meeting
+                          </h3>
+                          <button
+                            onClick={() => {
+                              setShowZoomPopup(false);
+                              setZoomTopic("");
+                            }}
+                            className="text-gray-400 hover:text-white"
+                          >
+                            <X size={20} />
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          value={zoomTopic}
+                          onChange={(e) => setZoomTopic(e.target.value)}
+                          placeholder="Enter meeting topic"
+                          className="w-full px-3 py-2 bg-[#0a0a0f] border border-[#2d2d3a] rounded-md text-white focus:outline-none focus:ring-2 focus:ring-[#9333EA] focus:border-transparent mb-4"
+                        />
+                        {isCreatingMeeting ? (
+                          <div className="flex items-center justify-center py-2">
+                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                            Creating...
+                          </div>
+                        ) : (
+                          <>
+                            <button
+                              onClick={handleCreateZoomMeeting}
+                              disabled={!zoomTopic.trim()}
+                              className={`w-full py-2 rounded-md ${
+                                !zoomTopic.trim()
+                                  ? "bg-[#2d2d3a] text-gray-400 cursor-not-allowed"
+                                  : "bg-[#9333EA] text-white hover:bg-[#7e22ce]"
+                              }`}
+                            >
+                              Create Meeting
+                            </button>
+                            {meetingData && (
+                              <div className="mt-4 p-3 bg-[#0a0a0f] rounded-md">
+                                <p className="text-sm text-gray-300 mb-2">
+                                  Meeting URL:
+                                </p>
+                                <a
+                                  href={meetingData.start_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[#9333EA] hover:underline break-all text-sm"
+                                >
+                                  {meetingData.start_url}
+                                </a>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   {/* <button className="p-2 rounded-full hover:bg-[#1e1e2d] transition-colors">
                     <Video size={18} />
                   </button> */}
@@ -978,7 +1204,7 @@ const formatMessageTime = (dateString) => {
                 onScroll={(e) => {
                   // Load more messages when scrolling to top
                   if (e.target.scrollTop === 0 && hasMoreMessages) {
-                    handleLoadMoreMessages()
+                    handleLoadMoreMessages();
                   }
                 }}
               >
@@ -988,7 +1214,9 @@ const formatMessageTime = (dateString) => {
                       <MessageSquare size={24} className="text-[#9333EA]" />
                     </div>
                     <p className="text-gray-400">No messages yet</p>
-                    <p className="text-xs text-gray-500 mt-1">Start the conversation by sending a message</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Start the conversation by sending a message
+                    </p>
                   </div>
                 ) : (
                   <>
@@ -1008,31 +1236,45 @@ const formatMessageTime = (dateString) => {
                       const showDateSeparator =
                         index === 0 ||
                         new Date(message.createdAt).toDateString() !==
-                          new Date(messages[index - 1].createdAt).toDateString()
+                          new Date(
+                            messages[index - 1].createdAt
+                          ).toDateString();
 
-                      const isUserMessage = message.sender?._id === user._id
+                      const isUserMessage = message.sender?._id === user._id;
 
                       return (
                         <div key={message._id || `temp-${index}`}>
                           {showDateSeparator && (
                             <div className="flex items-center justify-center my-4">
                               <div className="bg-[#1e1e2d] px-3 py-1 rounded-full text-xs text-gray-400">
-                                {new Date(message.createdAt).toLocaleDateString([], {
-                                  weekday: "long",
-                                  month: "long",
-                                  day: "numeric",
-                                })}
+                                {new Date(message.createdAt).toLocaleDateString(
+                                  [],
+                                  {
+                                    weekday: "long",
+                                    month: "long",
+                                    day: "numeric",
+                                  }
+                                )}
                               </div>
                             </div>
                           )}
 
-                          <div className={`flex ${isUserMessage ? "justify-end" : "justify-start"}`}>
-                            <div className={`flex max-w-[75%] ${isUserMessage ? "flex-row-reverse" : ""}`}>
+                          <div
+                            className={`flex ${
+                              isUserMessage ? "justify-end" : "justify-start"
+                            }`}
+                          >
+                            <div
+                              className={`flex max-w-[75%] ${
+                                isUserMessage ? "flex-row-reverse" : ""
+                              }`}
+                            >
                               {!isUserMessage && (
                                 <div className="h-8 w-8 rounded-full overflow-hidden mr-2 flex-shrink-0">
                                   <img
                                     src={
-                                      getOtherParticipant(selectedConversation)?.profilePic ||
+                                      getOtherParticipant(selectedConversation)
+                                        ?.profilePic ||
                                       "/placeholder.svg?height=32&width=32"
                                     }
                                     alt="Avatar"
@@ -1043,78 +1285,113 @@ const formatMessageTime = (dateString) => {
                               <div>
                                 <div
                                   className={`rounded-lg p-3 ${
-                                    isUserMessage ? "bg-[#9333EA] text-white" : "bg-[#1e1e2d] text-white"
+                                    isUserMessage
+                                      ? "bg-[#9333EA] text-white"
+                                      : "bg-[#1e1e2d] text-white"
                                   }`}
                                 >
                                   {message.content}
 
                                   {/* Attachments */}
-                                  {message.attachments && message.attachments.length > 0 && (
-                                    <div className="mt-2 space-y-2">
-                                      {message?.attachments.map((attachment, idx) => {
-                                        const isImage =
-                                          attachment.fileType?.startsWith("image/") ||
-                                          attachment.fileName?.match(/\.(jpg|jpeg|png|gif|webp)$/i)
+                                  {message.attachments &&
+                                    message.attachments.length > 0 && (
+                                      <div className="mt-2 space-y-2">
+                                        {message?.attachments.map(
+                                          (attachment, idx) => {
+                                            const isImage =
+                                              attachment.fileType?.startsWith(
+                                                "image/"
+                                              ) ||
+                                              attachment.fileName?.match(
+                                                /\.(jpg|jpeg|png|gif|webp)$/i
+                                              );
 
-                                        if (isImage) {
-                                          return (
-                                            <div key={idx} className="rounded-lg overflow-hidden">
-                                              <img
-                                                src={attachment.tempUrl || attachment.filePath}
-                                                alt={attachment.fileName || "Image"}
-                                                className="max-w-full rounded"
-                                              />
-                                            </div>
-                                          )
-                                        } else {
-                                          return (
-                                            <div key={idx} className="bg-[#0a0a0f]/50 rounded-lg p-3 flex items-center">
-                                              <div className="bg-[#2d2d3a] p-2 rounded-md mr-3">
-                                                <File size={24} className="text-[#9333EA]" />
-                                              </div>
-                                              <div className="flex-1 min-w-0">
-                                                <p className="font-medium truncate">{attachment.fileName}</p>
-                                                <p className="text-xs text-gray-400">
-                                                  {attachment.fileSize
-                                                    ? `${Math.round(attachment.fileSize / 1024)} KB`
-                                                    : "Unknown size"}
-                                                </p>
-                                              </div>
-                                              <a
-                                                href={attachment.filePath}
-                                                download={attachment.fileName}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="p-2 text-gray-400 hover:text-white"
-                                              >
-                                                <Download size={18} />
-                                              </a>
-                                            </div>
-                                          )
-                                        }
-                                      })}
-                                    </div>
-                                  )}
+                                            if (isImage) {
+                                              return (
+                                                <div
+                                                  key={idx}
+                                                  className="rounded-lg overflow-hidden"
+                                                >
+                                                  <img
+                                                    src={
+                                                      attachment.tempUrl ||
+                                                      attachment.filePath
+                                                    }
+                                                    alt={
+                                                      attachment.fileName ||
+                                                      "Image"
+                                                    }
+                                                    className="max-w-full rounded"
+                                                  />
+                                                </div>
+                                              );
+                                            } else {
+                                              return (
+                                                <div
+                                                  key={idx}
+                                                  className="bg-[#0a0a0f]/50 rounded-lg p-3 flex items-center"
+                                                >
+                                                  <div className="bg-[#2d2d3a] p-2 rounded-md mr-3">
+                                                    <File
+                                                      size={24}
+                                                      className="text-[#9333EA]"
+                                                    />
+                                                  </div>
+                                                  <div className="flex-1 min-w-0">
+                                                    <p className="font-medium truncate">
+                                                      {attachment.fileName}
+                                                    </p>
+                                                    <p className="text-xs text-gray-400">
+                                                      {attachment.fileSize
+                                                        ? `${Math.round(
+                                                            attachment.fileSize /
+                                                              1024
+                                                          )} KB`
+                                                        : "Unknown size"}
+                                                    </p>
+                                                  </div>
+                                                  <a
+                                                    href={attachment.filePath}
+                                                    download={
+                                                      attachment.fileName
+                                                    }
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="p-2 text-gray-400 hover:text-white"
+                                                  >
+                                                    <Download size={18} />
+                                                  </a>
+                                                </div>
+                                              );
+                                            }
+                                          }
+                                        )}
+                                      </div>
+                                    )}
                                 </div>
                                 <div
-                                  className={`flex items-center mt-1 text-xs text-gray-400 ${isUserMessage ? "justify-end" : ""}`}
+                                  className={`flex items-center mt-1 text-xs text-gray-400 ${
+                                    isUserMessage ? "justify-end" : ""
+                                  }`}
                                 >
                                   <span>
                                     {message.timestamp
                                       ? formatMessageTime(message.timestamp)
                                       : message.createdAt
-                                        ? formatMessageTime(message.createdAt)
-                                        : "Unknown time"}
+                                      ? formatMessageTime(message.createdAt)
+                                      : "Unknown time"}
                                   </span>
                                   {isUserMessage && message.status && (
-                                    <span className="ml-1">{getMessageStatusIcon(message.status)}</span>
+                                    <span className="ml-1">
+                                      {getMessageStatusIcon(message.status)}
+                                    </span>
                                   )}
                                 </div>
                               </div>
                             </div>
                           </div>
                         </div>
-                      )
+                      );
                     })}
                     <div ref={messagesEndRef} />
                   </>
@@ -1136,8 +1413,11 @@ const formatMessageTime = (dateString) => {
                         <div className="flex flex-col gap-2">
                           <button
                             onClick={() => {
-                              fileInputRef.current?.setAttribute("accept", "*/*")
-                              fileInputRef.current?.click()
+                              fileInputRef.current?.setAttribute(
+                                "accept",
+                                "*/*"
+                              );
+                              fileInputRef.current?.click();
                             }}
                             className="flex items-center gap-2 p-2 hover:bg-[#2d2d3a] rounded-md transition-colors"
                           >
@@ -1146,8 +1426,11 @@ const formatMessageTime = (dateString) => {
                           </button>
                           <button
                             onClick={() => {
-                              fileInputRef.current?.setAttribute("accept", "image/*")
-                              fileInputRef.current?.click()
+                              fileInputRef.current?.setAttribute(
+                                "accept",
+                                "image/*"
+                              );
+                              fileInputRef.current?.click();
                             }}
                             className="flex items-center gap-2 p-2 hover:bg-[#2d2d3a] rounded-md transition-colors"
                           >
@@ -1157,7 +1440,13 @@ const formatMessageTime = (dateString) => {
                         </div>
                       </div>
                     )}
-                    <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} multiple />
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      className="hidden"
+                      onChange={handleFileUpload}
+                      multiple
+                    />
                   </div>
                   <div className="flex-1 relative">
                     <input
@@ -1166,8 +1455,8 @@ const formatMessageTime = (dateString) => {
                       onChange={(e) => setNewMessage(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault()
-                          sendMessage()
+                          e.preventDefault();
+                          sendMessage();
                         }
                       }}
                       placeholder="Type a message..."
@@ -1204,9 +1493,9 @@ const formatMessageTime = (dateString) => {
                             <button
                               key={emoji}
                               onClick={() => {
-                                setNewMessage((prev) => prev + emoji)
-                                setShowEmojiPicker(false)
-                                messageInputRef.current?.focus()
+                                setNewMessage((prev) => prev + emoji);
+                                setShowEmojiPicker(false);
+                                messageInputRef.current?.focus();
                               }}
                               className="w-8 h-8 flex items-center justify-center hover:bg-[#2d2d3a] rounded-md transition-colors text-lg"
                             >
@@ -1242,7 +1531,9 @@ const formatMessageTime = (dateString) => {
                   <MessageSquare size={32} className="text-[#9333EA]" />
                 </div>
                 <h3 className="text-xl font-bold mb-2">Your Messages</h3>
-                <p className="text-gray-400 max-w-md">Select a conversation from the list to start messaging</p>
+                <p className="text-gray-400 max-w-md">
+                  Select a conversation from the list to start messaging
+                </p>
               </div>
             </div>
           )}
@@ -1263,14 +1554,21 @@ const formatMessageTime = (dateString) => {
               <div className="p-4 flex flex-col items-center border-b border-[#2d2d3a]">
                 <div className="h-24 w-24 rounded-full overflow-hidden mb-4">
                   <img
-                    src={getOtherParticipant(selectedConversation)?.profilePic || "/placeholder.svg?height=96&width=96"}
-                    alt={`${getOtherParticipant(selectedConversation)?.name || "User"}'s avatar`}
+                    src={
+                      getOtherParticipant(selectedConversation)?.profilePic ||
+                      "/placeholder.svg?height=96&width=96"
+                    }
+                    alt={`${
+                      getOtherParticipant(selectedConversation)?.name || "User"
+                    }'s avatar`}
                     className="h-full w-full object-cover"
                   />
                 </div>
                 <h3 className="text-lg font-bold">
                   {getOtherParticipant(selectedConversation)
-                    ? `${getOtherParticipant(selectedConversation).name} ${getOtherParticipant(selectedConversation).lastName}`
+                    ? `${getOtherParticipant(selectedConversation).name} ${
+                        getOtherParticipant(selectedConversation).lastName
+                      }`
                     : "Unknown User"}
                 </h3>
                 <p className="text-sm text-gray-400 capitalize">
@@ -1279,11 +1577,15 @@ const formatMessageTime = (dateString) => {
                 <div className="flex items-center mt-2">
                   <div
                     className={`h-2 w-2 rounded-full ${
-                      getOtherParticipant(selectedConversation)?.isOnline ? "bg-green-500" : "bg-gray-500"
+                      getOtherParticipant(selectedConversation)?.isOnline
+                        ? "bg-green-500"
+                        : "bg-gray-500"
                     } mr-2`}
                   ></div>
                   <span className="text-sm text-gray-400">
-                    {getOtherParticipant(selectedConversation)?.isOnline ? "Online" : "Offline"}
+                    {getOtherParticipant(selectedConversation)?.isOnline
+                      ? "Online"
+                      : "Offline"}
                   </span>
                 </div>
               </div>
@@ -1292,8 +1594,12 @@ const formatMessageTime = (dateString) => {
                 <div className="p-4 border-b border-[#2d2d3a]">
                   <h4 className="text-sm font-medium mb-3">Project Details</h4>
                   <div className="bg-[#1e1e2d] p-3 rounded-lg">
-                    <p className="text-sm font-medium">{selectedConversation.job.title}</p>
-                    <p className="text-xs text-gray-400 mt-1">Project ID: #{selectedConversation.job._id}</p>
+                    <p className="text-sm font-medium">
+                      {selectedConversation.job.title}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Project ID: #{selectedConversation.job._id}
+                    </p>
                     <div className="flex items-center mt-2">
                       {/* <button
                         onClick={() => navigate(`/jobs/${selectedConversation.job._id}`)}
@@ -1327,7 +1633,7 @@ const formatMessageTime = (dateString) => {
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Messaging
+export default Messaging;

@@ -8,6 +8,7 @@ import {
   getMyPostedJobs,
   hireFreelancer,
   completeJob,
+  submitWorkForCompletion,
   cancelJob,
   getActiveAndCompletedJobs,
 
@@ -24,6 +25,7 @@ import {
   searchJobs,
   getClientCrowdsourcedJobs,
   getFreelancerCrowdsourcedJobs,
+  requestRevision
   
 } 
 from '../controllers/jobController.js';
@@ -52,9 +54,11 @@ router.delete('/:id', protect, isClientOrAdmin, deleteJob);
 router.get('/my/posted-jobs', protect, isClient, getMyPostedJobs);
 router.post('/:id/hire/:bidId', protect, isClient, hireFreelancer);
 router.put('/:id/complete', protect, completeJob);
+router.put('/:id/submit-work', protect, isFreelancer, submitWorkForCompletion);
 router.put('/:id/cancel', protect, isClientOrAdmin, cancelJob);
 router.get('/user/active-jobs', protect, getActiveAndCompletedJobs);
 router.put('/:jobId/freelancer/:freelancerId/milestone/:milestoneId/approve', protect, isClient, approveMilestone);
+router.post('/jobs/:id/milestones/:milestoneId/request-revision', protect,isClient, requestRevision);
 
 // Freelancer routes
 router.get('/freelancer/status', protect, getActiveAndCompletedJobs);

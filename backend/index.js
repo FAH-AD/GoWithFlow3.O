@@ -24,6 +24,8 @@ import clientVerificationRoutes from './routes/clientVerificationRoutes.js';
 import uploadTestRoutes from './routes/uploadTestRoute.js';
 import freelancerRoutes from './routes/freelancerRoutes.js';
 import userProfileRoutes from './routes/userProfileRoutes.js';
+import issueRoutes from './routes/issueRoutes.js';
+import zoomRoutes from './routes/zoomRoutes.js';
 
 // Initialize app
 const app = express();
@@ -66,6 +68,7 @@ app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 app.use(cors());
 app.use(morgan('dev'));
 
+app.use('/api/zoom', zoomRoutes);
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -80,6 +83,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadTestRoutes);
 app.use('/api/freelancer', freelancerRoutes);
 app.use('/api/user-profile', userProfileRoutes);
+app.use('/api/issues', issueRoutes);
 
 // API documentation route
 app.get('/api', (req, res) => {
