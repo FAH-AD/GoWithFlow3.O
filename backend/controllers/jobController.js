@@ -980,12 +980,13 @@ export const approveMilestone = async (req, res) => {
   }
 };
 
+
 export const requestRevision = async (req, res) => {
   try {
-    const { id, milestoneId } = req.params;
+    const { jobId, milestoneId } = req.params;
     const { revisionDetails, attachments } = req.body;
 
-    const job = await Job.findById(id).populate('hiredFreelancer');
+    const job = await Job.findById(jobId);
     if (!job) return customErrorHandler(res, new Error('Job not found'), 404);
 
     if (job.client.toString() !== req.user._id.toString()) {
@@ -1003,8 +1004,11 @@ export const requestRevision = async (req, res) => {
       milestone = teamMember.milestones.id(milestoneId);
       freelancer = await User.findById(teamMember.freelancer);
     } else {
+      if (!job.hiredFreelancer) {
+        return customErrorHandler(res, new Error('No freelancer hired for this job'), 400);
+      }
       milestone = job.milestones.id(milestoneId);
-      freelancer = job.hiredFreelancer;
+      freelancer = await User.findById(job.hiredFreelancer);
     }
 
     if (!milestone) return customErrorHandler(res, new Error('Milestone not found'), 404);
@@ -1016,7 +1020,9 @@ export const requestRevision = async (req, res) => {
     // Create or update the revision object
     milestone.revision = {
       details: revisionDetails,
-      attachments: attachments,
+      attachments: attachments.map(attachment => ({
+        url: attachment.url
+      })),
       requestedAt: new Date(),
       status: 'pending'
     };
@@ -1025,16 +1031,7 @@ export const requestRevision = async (req, res) => {
     await job.save();
 
     // Send notification to freelancer
-    await Notification.create({
-      recipient: freelancer._id,
-      type: 'revision-requested',
-      title: 'Revision Requested',
-      message: `A revision has been requested for the milestone "${milestone.title}" in job "${job.title}".`,
-      data: {
-        job: job._id,
-        milestone: milestone._id,
-      },
-    });
+   
 
     // Send email notification to freelancer
     await sendEmail({

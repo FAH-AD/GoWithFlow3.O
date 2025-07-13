@@ -45,15 +45,15 @@ const ProjectCard = ({ project }) => {
         <div className="flex items-center">
           <div className="h-8 w-8 rounded-full overflow-hidden mr-2">
             <img
-              src={project.freelancer.avatar || "/placeholder.svg"}
-              alt={project.freelancer.name}
+              src={project.freelancer?.avatar || "/placeholder.svg"}
+              alt={project.freelancer?.name}
               className="h-full w-full object-cover"
             />
           </div>
           <div>
-            <p className="text-sm font-medium">{project.freelancer.name}</p>
+            <p className="text-sm font-medium">{project.freelancer?.name}</p>
             <div className="flex items-center">
-              <span className="text-[#9333EA] text-xs font-medium">{project.freelancer.rating}</span>
+              <span className="text-[#9333EA] text-xs font-medium">{project.freelancer?.rating}</span>
               <svg
                 className="w-3 h-3 text-[#9333EA] ml-1"
                 fill="currentColor"

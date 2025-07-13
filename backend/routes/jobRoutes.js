@@ -58,7 +58,8 @@ router.put('/:id/submit-work', protect, isFreelancer, submitWorkForCompletion);
 router.put('/:id/cancel', protect, isClientOrAdmin, cancelJob);
 router.get('/user/active-jobs', protect, getActiveAndCompletedJobs);
 router.put('/:jobId/freelancer/:freelancerId/milestone/:milestoneId/approve', protect, isClient, approveMilestone);
-router.post('/jobs/:id/milestones/:milestoneId/request-revision', protect,isClient, requestRevision);
+router.post('/:jobId/freelancer/:freelancerId/milestone/:milestoneId/request-revision', protect, isClient, requestRevision);
+router.post('/:jobId/milestones/:milestoneId/request-revision', protect,isClient, requestRevision);
 
 // Freelancer routes
 router.get('/freelancer/status', protect, getActiveAndCompletedJobs);

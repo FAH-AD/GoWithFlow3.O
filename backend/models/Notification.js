@@ -31,6 +31,7 @@ const notificationSchema = new mongoose.Schema(
           'account_deactivated',
           'account_reactivated',
           'role_changed',
+          
         ],
         message: 'Type must be a valid option',
       },

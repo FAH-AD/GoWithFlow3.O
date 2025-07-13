@@ -195,7 +195,7 @@ const jobSchema = new mongoose.Schema(
         deadline: Date,
         status: { 
           type: String, 
-          enum: ['pending', 'in-progress', 'submitted', 'approved', 'rejected', 'paid'], 
+          enum: ['pending', 'in-progress', 'submitted','in-revision', 'approved', 'rejected', 'paid'], 
           default: 'pending' 
         },
         submission: {
@@ -213,7 +213,21 @@ const jobSchema = new mongoose.Schema(
             type: Date,
           },
         },
-
+        revision: {
+          message: {
+            type: String,
+            trim: true,
+          },
+          attachments: [
+            {
+              filename: String,
+              url: String,
+            }
+          ],
+          submittedAt: {
+            type: Date,
+          },
+        },
         submissionDate: Date,
         approvalDate: Date,
         paymentDate: Date,

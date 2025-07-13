@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { useParams } from "react-router-dom";
 import { Link } from "react-router-dom";
+import { uploadFile } from "../services/fileUpload";
 import Navbar from "../components/Navbar";
 import {
   Users,
@@ -31,6 +32,8 @@ const ClientTeams = () => {
   const [selectedMember, setSelectedMember] = useState(null);
   const [newMilestoneOpen, setNewMilestoneOpen] = useState(false);
   const [approvingMilestoneId, setApprovingMilestoneId] = useState(null);
+  const [revisionPopupOpen, setRevisionPopupOpen] = useState(false);
+  const [revisionMilestone, setRevisionMilestone] = useState(null);
   const token = localStorage.getItem("authToken");
 
   useEffect(() => {
@@ -66,12 +69,12 @@ const ClientTeams = () => {
   const handleTeamSelect = (team) => {
     setSelectedTeam(team);
     setSelectedMember(null);
-    console.log('Selected team:', team);
+    console.log("Selected team:", team);
   };
 
   const handleMemberSelect = (member) => {
     setSelectedMember(member);
-    console.log('Selected member:', member);
+    console.log("Selected member:", member);
   };
 
   const handleApproveMilestone = async (jobId, freelancerId, milestoneId) => {
@@ -116,13 +119,27 @@ const ClientTeams = () => {
       setApprovingMilestoneId(null);
     }
   };
-
-  const handleRequestRevision = async (jobId, freelancerId, milestoneId) => {
+  const handleRequestRevision = (jobId, freelancerId, milestoneId) => {
+    setRevisionMilestone({ jobId, freelancerId, milestoneId });
+    setRevisionPopupOpen(true);
+  };
+  const submitRevisionRequest = async (revisionData) => {
     try {
-      // You'll need to implement this API endpoint on your backend
+      const { jobId, freelancerId, milestoneId } = revisionMilestone;
+      const { revisionDetails, attachments } = revisionData;
+
+      // Upload attachments
+      const uploadedAttachments = await Promise.all(
+        attachments.map((file) => uploadFile(file))
+      );
+
+      // Send revision request to the backend
       await axios.post(
-        `http://localhost:5000/api/jobs/${jobId}/freelancer/${freelancerId}/milestone/${milestoneId}/requestRevision`,
-        {},
+        `http://localhost:5000/api/jobs/${jobId}/freelancer/${freelancerId}/milestone/${milestoneId}/request-revision`,
+        {
+          revisionDetails,
+          attachments: uploadedAttachments,
+        },
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -131,11 +148,14 @@ const ClientTeams = () => {
       );
 
       // Refresh the team data
-      const response = await axios.get("http://localhost:5000/api/jobs/teams", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await axios.get(
+        "http://localhost:5000/api/jobs/client/teams",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       setTeams(response.data.data);
 
       // Update the selected team and member
@@ -150,9 +170,116 @@ const ClientTeams = () => {
         );
         setSelectedMember(updatedMember);
       }
+
+      setRevisionPopupOpen(false);
+      setRevisionMilestone(null);
     } catch (err) {
       console.error("Error requesting revision:", err);
+      // Handle error (e.g., show error message to user)
     }
+  };
+
+  const RevisionRequestPopup = ({ onSubmit, onClose }) => {
+    const [revisionDetails, setRevisionDetails] = useState("");
+    const [attachments, setAttachments] = useState([]);
+    const [isUploading, setIsUploading] = useState(false);
+
+    const handleFileChange = (e) => {
+      setAttachments([...e.target.files]);
+    };
+
+    const handleSubmit = (e) => {
+      e.preventDefault();
+      onSubmit({ revisionDetails, attachments });
+    };
+
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-4 py-6 sm:p-0"
+      >
+        <motion.div
+          initial={{ scale: 0.9 }}
+          animate={{ scale: 1 }}
+          exit={{ scale: 0.9 }}
+          className="bg-[#1c1c24] rounded-lg p-4 sm:p-6 md:p-8 w-full max-w-md mx-auto relative"
+        >
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 text-gray-400 hover:text-white"
+          >
+            <X size={20} />
+          </button>
+
+          <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">
+            Request Revision
+          </h2>
+          <p className="text-gray-400 text-sm mb-6">
+            Provide details for the revision request
+          </p>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                Revision Details
+              </label>
+              <textarea
+                value={revisionDetails}
+                onChange={(e) => setRevisionDetails(e.target.value)}
+                className="w-full bg-[#2d2d3a] text-white rounded-md px-3 py-2 text-sm border border-[#3d3d4a] focus:border-[#9333EA] focus:outline-none"
+                rows="4"
+                placeholder="Describe the changes needed"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                Attachments
+              </label>
+              <input
+                type="file"
+                multiple
+                onChange={handleFileChange}
+                className="w-full bg-[#2d2d3a] text-white rounded-md px-3 py-2 text-sm border border-[#3d3d4a] focus:border-[#9333EA] focus:outline-none"
+              />
+            </div>
+
+            <div className="flex flex-col sm:flex-row justify-between gap-3 sm:gap-4 mt-6">
+              <button
+                type="submit"
+                disabled={isUploading}
+                className={`${
+                  isUploading
+                    ? "bg-[#9333EA]/50 cursor-not-allowed"
+                    : "bg-[#9333EA] hover:bg-[#7928CA]"
+                } text-white px-4 py-2 rounded-md text-sm font-medium w-full sm:w-auto flex items-center justify-center`}
+              >
+                {isUploading ? (
+                  <>
+                    <span className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></span>
+                    Uploading...
+                  </>
+                ) : (
+                  "Submit Revision Request"
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isUploading}
+                className="bg-[#2D3748] text-white px-4 py-2 rounded-md hover:bg-[#4A5568] text-sm font-medium w-full sm:w-auto"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </motion.div>
+      </motion.div>
+    );
   };
 
   const NewMilestoneForm = ({ jobId, freelancerId, onClose }) => {
@@ -740,6 +867,98 @@ const ClientTeams = () => {
                       )}
                     </div>
 
+                    <div className="mb-6">
+                      <h3 className="text-md font-medium text-gray-300 mb-2">
+                        Milestones In Revision
+                      </h3>
+                      {selectedMember.milestones.filter(
+                        (m) => m.status === "in-revision"
+                      ).length === 0 ? (
+                        <p className="text-gray-400 text-sm py-2">
+                          No milestones in revision
+                        </p>
+                      ) : (
+                        <div className="space-y-3">
+                          {selectedMember.milestones
+                            .filter((m) => m.status === "in-revision")
+                            .map((milestone) => (
+                              <div
+                                key={milestone._id}
+                                className="bg-[#2d2d3a] p-3 rounded-lg"
+                              >
+                                <h4 className="font-medium">
+                                  {milestone.title}
+                                </h4>
+                                <p className="text-sm text-gray-400 mt-1">
+                                  {milestone.description}
+                                </p>
+                                <div className="flex flex-wrap gap-x-4 gap-y-2 mt-2">
+                                  <div className="flex items-center text-sm">
+                                    <span>
+                                      PKR {milestone.amount.toLocaleString()}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center text-sm">
+                                    <Calendar
+                                      size={14}
+                                      className="text-[#9333EA] mr-1"
+                                    />
+                                    <span>
+                                      {new Date(
+                                        milestone.deadline
+                                      ).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center text-sm">
+                                    <div className="bg-orange-500/20 text-orange-300 px-2 py-0.5 rounded-full text-xs">
+                                      In Revision
+                                    </div>
+                                  </div>
+                                </div>
+                                {milestone.revision && (
+                                  <div className="mt-3 p-3 bg-[#1c1c24] rounded-lg">
+                                    <h5 className="text-sm font-medium text-white mb-2">
+                                      Revision Details
+                                    </h5>
+                                    <p className="text-sm text-gray-300 mb-2">
+                                      {milestone.revision.details}
+                                    </p>
+                                    {milestone.revision.attachments &&
+                                      milestone.revision.attachments.length >
+                                        0 && (
+                                        <div className="space-y-2">
+                                          <p className="text-xs text-gray-400">
+                                            Attachments:
+                                          </p>
+                                          <div className="flex flex-wrap gap-2">
+                                            {milestone.revision.attachments.map(
+                                              (attachment, index) => (
+                                                <a
+                                                  key={index}
+                                                  href={attachment.url}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="bg-[#2d2d3a] text-[#9333EA] px-3 py-1 rounded-md text-xs hover:bg-[#3d3d4a] transition-colors flex items-center"
+                                                >
+                                                  <Download
+                                                    size={12}
+                                                    className="mr-1"
+                                                  />
+                                                  View Attachment
+                                                </a>
+                                              )
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+
                     <div>
                       <h3 className="text-md font-medium text-gray-300 mb-2">
                         Completed Milestones
@@ -854,6 +1073,18 @@ const ClientTeams = () => {
             jobId={selectedTeam._id}
             freelancerId={selectedMember.freelancer._id}
             onClose={() => setNewMilestoneOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {revisionPopupOpen && revisionMilestone && (
+          <RevisionRequestPopup
+            onSubmit={submitRevisionRequest}
+            onClose={() => {
+              setRevisionPopupOpen(false);
+              setRevisionMilestone(null);
+            }}
           />
         )}
       </AnimatePresence>

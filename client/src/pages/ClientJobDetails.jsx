@@ -44,6 +44,7 @@ const ClientJobDetails = () => {
   const [activeTab, setActiveTab] = useState("overview")
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false)
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
+  const [approvingMilestone, setApprovingMilestone] = useState(null)
   const [reviewRecipient, setReviewRecipient] = useState(null)
 
   const token = localStorage.getItem("authToken")

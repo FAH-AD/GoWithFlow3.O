@@ -57,12 +57,12 @@ const ProjectTimeline = ({ projects }) => {
               <div className="flex items-center mt-1">
                 <div className="h-5 w-5 rounded-full overflow-hidden mr-1">
                   <img
-                    src={project.freelancer.avatar || "/placeholder.svg"}
-                    alt={project.freelancer.name}
+                    src={project.freelancer?.image || "/placeholder.svg"}
+                    alt={project.freelancer?.name}
                     className="h-full w-full object-cover"
                   />
                 </div>
-                <span className="text-gray-400 text-xs">{project.freelancer.name}</span>
+                <span className="text-gray-400 text-xs">{project.freelancer?.name}</span>
               </div>
               <div className="w-full h-1 bg-[#2d2d3a] rounded-full mt-2">
                 <div className="h-full bg-[#9333EA] rounded-full" style={{ width: `${project.progress}%` }}></div>
