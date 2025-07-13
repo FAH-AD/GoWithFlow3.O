@@ -273,6 +273,28 @@ const userSchema = new mongoose.Schema(
       inProgress: { type: Number, default: 0 },
       pending: { type: Number, default: 0 },
       available: { type: Number, default: 0 }
+    },
+    
+    // Admin management fields
+    deactivatedAt: {
+      type: Date,
+    },
+    deactivatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    deactivationReason: {
+      type: String,
+    },
+    reactivatedAt: {
+      type: Date,
+    },
+    reactivatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    reactivationReason: {
+      type: String,
     }
   },
   {

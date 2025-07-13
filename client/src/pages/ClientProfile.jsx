@@ -8,6 +8,9 @@ import {uploadFile} from '../services/fileUpload'
 import { Briefcase, Globe, Building, Mail, AlertTriangle, Loader } from "lucide-react"
 import Navbar from "../components/Navbar"
 import ProfileHeader from "../components/profileHeader"
+import ReviewSummary from "../components/ReviewSummary"
+import ReviewsList from "../components/ReviewsList"
+import { reviewService } from "../services/reviewService"
 
 const ClientProfile = () => {
   const navigate = useNavigate()
@@ -28,6 +31,9 @@ const ClientProfile = () => {
   })
   const [isSaving, setIsSaving] = useState(false)
   const [successMessage, setSuccessMessage] = useState("")
+  const [reviews, setReviews] = useState([])
+  const [reviewStats, setReviewStats] = useState(null)
+  const [reviewsLoading, setReviewsLoading] = useState(false)
   const isOwnProfile = !userId || (user && userId === user._id)
 
   // Check if user is authorized
@@ -62,6 +68,11 @@ const ClientProfile = () => {
       console.log("Profile data:", data)
       setProfileData(data.data.user)
 
+      // Fetch reviews for this user
+      if (data.data.user._id) {
+        fetchReviews(data.data.user._id);
+      }
+
       // Initialize form data
 
       setFormData({
@@ -77,6 +88,23 @@ const ClientProfile = () => {
       setIsLoading(false)
     }
   }
+
+  // Fetch reviews for the user
+  const fetchReviews = async (targetUserId) => {
+    setReviewsLoading(true);
+    try {
+      const reviewsData = await reviewService.getUserReviews(targetUserId);
+      console.log('Client reviews data received:', reviewsData);
+      setReviews(reviewsData.reviews || []);
+      setReviewStats(reviewsData.stats || null);
+    } catch (error) {
+      console.error('Error fetching reviews:', error);
+      setReviews([]);
+      setReviewStats(null);
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
 
   // Handle form input changes
   const handleChange = (e) => {
@@ -451,6 +479,39 @@ const ClientProfile = () => {
                     </span>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Reviews Section */}
+            <div className="bg-[#121218] rounded-lg border border-[#2d2d3a] overflow-hidden">
+              <div className="p-6 border-b border-[#2d2d3a]">
+                <h2 className="text-xl font-bold">Reviews & Ratings</h2>
+              </div>
+              <div className="p-6">
+                <ReviewSummary 
+                  userId={profileData?._id} 
+                  stats={reviewStats} 
+                  reviews={reviews} 
+                />
+                
+                {reviews.length > 0 && (
+                  <div className="mt-6">
+                    <h3 className="text-lg font-semibold mb-4">Recent Reviews</h3>
+                    <ReviewsList 
+                      reviews={reviews.slice(0, 3)} 
+                      loading={reviewsLoading}
+                      showJobTitles={true}
+                    />
+                    
+                    {reviews.length > 3 && (
+                      <div className="mt-4 text-center">
+                        <button className="text-[#9333EA] hover:text-[#a855f7] text-sm">
+                          View All Reviews ({reviews.length})
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 

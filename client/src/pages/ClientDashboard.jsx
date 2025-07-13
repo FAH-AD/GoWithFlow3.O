@@ -15,6 +15,7 @@ import {
   Star,
   MessageSquare,
   AlertTriangle,
+  AlertOctagon,
 } from "lucide-react"
 
 import Navbar from "../components/Navbar"
@@ -25,48 +26,378 @@ import FreelancerCard from "../components/client/freelancer-card"
 import BudgetChart from "../components/client/budget-chart"
 import ProjectTimeline from "../components/client/project-timeline"
 import { useNavigate } from "react-router-dom"
+
+// Helper functions
+const formatCurrency = (amount) => {
+  return new Intl.NumberFormat('en-US').format(amount || 0);
+};
+
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  return new Date(dateString).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+};
+
+const getStatusColor = (status) => {
+  switch (status) {
+    case 'completed':
+      return 'text-green-500';
+    case 'in-progress':
+    case 'active':
+      return 'text-blue-500';
+    case 'draft':
+      return 'text-yellow-500';
+    default:
+      return 'text-gray-500';
+  }
+};
+
 const ClientDashboard = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [userStatus, setUserStatus] = useState("")
   const [userProfile, setUserProfile] = useState(null);
+  const [stats, setStats] = useState({
+    projects: { total: 0, active: 0, completed: 0 },
+    budget: { total: 0, spent: 0, remaining: 0 },
+    freelancers: { hired: 0, saved: 0 },
+    messages: { unread: 0 },
+  })
+  const [projects, setProjects] = useState([])
+  const [conversations, setConversations] = useState([])
+  const [error, setError] = useState(null)
+  const [lastUpdated, setLastUpdated] = useState(null)
   const navigate = useNavigate()
   const token = localStorage.getItem("authToken")
  
-
   const user = useSelector((state) => state.Auth.user)
+
+  // Helper function to make API calls with timeout
+  const fetchWithTimeout = async (url, options, timeout = 10000) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        throw new Error('Request timeout');
+      }
+      throw error;
+    }
+  };
+
+  // Fetch user profile data
+  const fetchProfile = async () => {
+    try {
+      const response = await fetchWithTimeout(`http://localhost:5000/api/user-profile/${user._id}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Profile response:', data); // Debug log
+      setUserStatus(data.data?.user?.clientVerification?.status || 'not-verified');
+      setUserProfile(data.data?.user);
+      return data.data?.user;
+    } catch (error) {
+      console.error('Error fetching user profile:', error.message);
+      if (error.message.includes('401')) {
+        console.log("Token seems to be invalid. Logging out.");
+      }
+      return null;
+    }
+  }
+
+  // Fetch posted jobs
+  const fetchPostedJobs = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/jobs/my/posted-jobs', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Posted jobs response:', data); // Debug log
+      return Array.isArray(data.data) ? data.data : [];
+    } catch (error) {
+      console.error('Error fetching posted jobs:', error.message);
+      return [];
+    }
+  }
+
+  // Fetch active and completed jobs
+  const fetchActiveJobs = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/jobs/user/active-jobs', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Active jobs response:', data); // Debug log
+      return Array.isArray(data.data) ? data.data : [];
+    } catch (error) {
+      console.error('Error fetching active jobs:', error.message);
+      return [];
+    }
+  }
+
+  // Fetch conversations for unread messages
+  const fetchConversations = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/messages/conversations?limit=50', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Conversations response:', data); // Debug log
+      return Array.isArray(data.data?.conversations) ? data.data.conversations : [];
+    } catch (error) {
+      console.error('Error fetching conversations:', error.message);
+      return [];
+    }
+  }
+
   useEffect(() => {
-    const fetchProfile = async () => {
+    const loadDashboardData = async () => {
+      setIsLoading(true);
+      setError(null);
 
       try {
-        const response = await fetch(`http://localhost:5000/api/user-profile/${user._id}`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
+        // Fetch all data in parallel
+        const [profileData, postedJobs, activeJobs, conversationsData] = await Promise.all([
+          fetchProfile(),
+          fetchPostedJobs(),
+          fetchActiveJobs(),
+          fetchConversations()
+        ]);
+
+        // Process jobs data - ensure arrays are valid
+        const validPostedJobs = Array.isArray(postedJobs) ? postedJobs : [];
+        const validActiveJobs = Array.isArray(activeJobs) ? activeJobs : [];
+        
+        const allJobs = [...validPostedJobs, ...validActiveJobs];
+        const activeJobs_count = allJobs.filter(job => job.status === 'in-progress' || job.status === 'active').length;
+        const completedJobs_count = allJobs.filter(job => job.status === 'completed').length;
+
+        // Process conversations for unread count - ensure array is valid
+        const validConversations = Array.isArray(conversationsData) ? conversationsData : [];
+        const unreadCount = validConversations.reduce((total, conv) => total + (conv.unreadCount || 0), 0);
+
+        // Count unique hired freelancers
+        const hiredFreelancers = new Set();
+        allJobs.forEach(job => {
+          if (job.hiredFreelancer) {
+            hiredFreelancers.add(job.hiredFreelancer._id || job.hiredFreelancer);
+          }
+          if (job.team && job.team.length > 0) {
+            job.team.forEach(member => hiredFreelancers.add(member.freelancer._id || member.freelancer));
+          }
         });
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        // Calculate completion rate and average rating
+        const completionRate = allJobs.length > 0 ? Math.round((completedJobs_count / allJobs.length) * 100) : 0;
 
-        const data = await response.json();
-        setUserStatus(data.data.user.clientVerification.status);
-        setUserProfile(data.data.user);
+        // Update stats with real data
+        setStats({
+          projects: { 
+            total: allJobs.length, 
+            active: activeJobs_count, 
+            completed: completedJobs_count,
+            completionRate 
+          },
+          budget: { 
+            total: profileData?.totalSpent || 0, 
+            spent: profileData?.totalSpent || 0, 
+            remaining: 0 
+          },
+          freelancers: { 
+            hired: hiredFreelancers.size, 
+            saved: profileData?.savedJobs?.length || 0 
+          },
+          messages: { unread: unreadCount },
+        });
+
+        // Format projects for display
+        const formattedProjects = allJobs.map(job => {
+          // Ensure job is a valid object
+          if (!job || typeof job !== 'object') return null;
+          
+          return {
+            id: job._id,
+            title: job.title || 'Untitled Project',
+            description: job.description || 'No description available',
+            budget: job.budget || 0,
+            spent: job.status === 'completed' ? (job.budget || 0) : Math.floor((job.budget || 0) * 0.6),
+            deadline: job.deadline,
+            formattedDeadline: formatDate(job.deadline),
+            progress: job.status === 'completed' ? 100 : (job.status === 'in-progress' ? 65 : 0),
+            status: job.status || 'draft',
+            statusColor: getStatusColor(job.status || 'draft'),
+            freelancer: job.hiredFreelancer ? {
+              name: job.hiredFreelancer.name || 'Unknown',
+              avatar: job.hiredFreelancer.profilePic || "https://randomuser.me/api/portraits/men/32.jpg",
+              rating: 4.8,
+            } : null,
+            createdAt: job.createdAt,
+            updatedAt: job.updatedAt,
+            formattedCreatedAt: formatDate(job.createdAt),
+            skills: Array.isArray(job.skills) ? job.skills : [],
+            bids: Array.isArray(job.bids) ? job.bids : [],
+            bidCount: Array.isArray(job.bids) ? job.bids.length : 0
+          };
+        }).filter(Boolean); // Remove any null entries
+
+        setProjects(formattedProjects);
+        setConversations(validConversations);
+        setLastUpdated(new Date());
       } catch (error) {
-        console.error('Error fetching user profile:', error.message);
-        // If the token is invalid, you might want to log the user out
-        if (error.message.includes('401')) {
-          console.log("Token seems to be invalid. Logging out.");
-        }
+        console.error('Error loading dashboard data:', error);
+        setError('Failed to load dashboard data. Please try again.');
+      } finally {
+        setIsLoading(false);
       }
+    };
+
+    if (user?._id && token) {
+      loadDashboardData();
     }
+  }, [user?._id, token]);
 
+  // Function to refresh dashboard data
+  const refreshData = () => {
+    if (user?._id && token) {
+      const loadDashboardData = async () => {
+        setError(null);
 
-    fetchProfile();
-  }, [ token]);
+        try {
+          const [profileData, postedJobs, activeJobs, conversationsData] = await Promise.all([
+            fetchProfile(),
+            fetchPostedJobs(),
+            fetchActiveJobs(),
+            fetchConversations()
+          ]);
+
+          const validPostedJobs = Array.isArray(postedJobs) ? postedJobs : [];
+          const validActiveJobs = Array.isArray(activeJobs) ? activeJobs : [];
+          
+          const allJobs = [...validPostedJobs, ...validActiveJobs];
+          const activeJobs_count = allJobs.filter(job => job.status === 'in-progress' || job.status === 'active').length;
+          const completedJobs_count = allJobs.filter(job => job.status === 'completed').length;
+          
+          const validConversations = Array.isArray(conversationsData) ? conversationsData : [];
+          const unreadCount = validConversations.reduce((total, conv) => total + (conv.unreadCount || 0), 0);
+
+          const hiredFreelancers = new Set();
+          allJobs.forEach(job => {
+            if (job.hiredFreelancer) {
+              hiredFreelancers.add(job.hiredFreelancer._id || job.hiredFreelancer);
+            }
+            if (job.team && job.team.length > 0) {
+              job.team.forEach(member => hiredFreelancers.add(member.freelancer._id || member.freelancer));
+            }
+          });
+
+          const completionRate = allJobs.length > 0 ? Math.round((completedJobs_count / allJobs.length) * 100) : 0;
+
+          setStats({
+            projects: { 
+              total: allJobs.length, 
+              active: activeJobs_count, 
+              completed: completedJobs_count,
+              completionRate 
+            },
+            budget: { 
+              total: profileData?.totalSpent || 0, 
+              spent: profileData?.totalSpent || 0, 
+              remaining: 0 
+            },
+            freelancers: { 
+              hired: hiredFreelancers.size, 
+              saved: profileData?.savedJobs?.length || 0 
+            },
+            messages: { unread: unreadCount },
+          });
+
+          const formattedProjects = allJobs.map(job => {
+            if (!job || typeof job !== 'object') return null;
+            
+            return {
+              id: job._id,
+              title: job.title || 'Untitled Project',
+              description: job.description || 'No description available',
+              budget: job.budget || 0,
+              spent: job.status === 'completed' ? (job.budget || 0) : Math.floor((job.budget || 0) * 0.6),
+              deadline: job.deadline,
+              formattedDeadline: formatDate(job.deadline),
+              progress: job.status === 'completed' ? 100 : (job.status === 'in-progress' ? 65 : 0),
+              status: job.status || 'draft',
+              statusColor: getStatusColor(job.status || 'draft'),
+              freelancer: job.hiredFreelancer ? {
+                name: job.hiredFreelancer.name || 'Unknown',
+                avatar: job.hiredFreelancer.profilePic || "https://randomuser.me/api/portraits/men/32.jpg",
+                rating: 4.8,
+              } : null,
+              createdAt: job.createdAt,
+              updatedAt: job.updatedAt,
+              formattedCreatedAt: formatDate(job.createdAt),
+              skills: Array.isArray(job.skills) ? job.skills : [],
+              bids: Array.isArray(job.bids) ? job.bids : [],
+              bidCount: Array.isArray(job.bids) ? job.bids.length : 0
+            };
+          }).filter(Boolean);
+
+          setProjects(formattedProjects);
+          setConversations(validConversations);
+          setLastUpdated(new Date());
+        } catch (error) {
+          console.error('Error refreshing dashboard data:', error);
+          setError('Failed to refresh dashboard data. Please try again.');
+        }
+      };
+      loadDashboardData();
+    }
+  };
 
   const renderVerificationBanner = () => {
 
@@ -106,7 +437,7 @@ const ClientDashboard = () => {
                 <span>Your verification was rejected. Please try another way to verify your company.</span>
               </div>
               <button
-                onClick={() => navigate("/verify-company")}
+                onClick={() => navigate("/client/verify-company")}
                 className="bg-[#9333EA] text-white px-4 py-2 rounded hover:bg-gray-800"
               >
                 Try Again
@@ -121,133 +452,27 @@ const ClientDashboard = () => {
     }
   }
   // Mock data - in a real app, this would come from an API
-  const [stats, setStats] = useState({
-    projects: { total: 0, active: 0, completed: 0 },
-    budget: { total: 0, spent: 0, remaining: 0 },
-    freelancers: { hired: 0, saved: 0 },
-    messages: { unread: 0 },
-  })
-
-  const [projects, setProjects] = useState([])
   const [savedFreelancers, setSavedFreelancers] = useState([])
 
-  // Simulate data loading
-  useEffect(() => {
-    const loadDashboardData = async () => {
-      // In a real app, you would fetch this data from your API
-      await new Promise((resolve) => setTimeout(resolve, 800))
-
-      setStats({
-        projects: { total: 12, active: 4, completed: 8 },
-        budget: { total: 24500, spent: 18200, remaining: 6300 },
-        freelancers: { hired: 7, saved: 15 },
-        messages: { unread: 3 },
-      })
-
-      setProjects([
-        {
-          id: 1,
-          title: "E-commerce Website Redesign",
-          description: "Redesign of our online store with improved UX and mobile responsiveness.",
-          budget: 5800,
-          spent: 3200,
-          deadline: "2023-08-25",
-          progress: 65,
-          status: "in_progress",
-          freelancer: {
-            name: "Alex Johnson",
-            avatar: "https://randomuser.me/api/portraits/men/32.jpg",
-            rating: 4.9,
-          },
-        },
-        {
-          id: 2,
-          title: "Mobile App Development",
-          description: "Creating a native mobile app for iOS and Android platforms.",
-          budget: 8500,
-          spent: 7200,
-          deadline: "2023-09-15",
-          progress: 85,
-          status: "in_progress",
-          freelancer: {
-            name: "Sarah Williams",
-            avatar: "https://randomuser.me/api/portraits/women/44.jpg",
-            rating: 5.0,
-          },
-        },
-        {
-          id: 3,
-          title: "Brand Identity Design",
-          description: "Creating a new brand identity including logo, color palette, and style guide.",
-          budget: 3200,
-          spent: 3200,
-          deadline: "2023-07-30",
-          progress: 100,
-          status: "completed",
-          freelancer: {
-            name: "Michael Chen",
-            avatar: "https://randomuser.me/api/portraits/men/45.jpg",
-            rating: 4.8,
-          },
-        },
-        {
-          id: 4,
-          title: "Content Marketing Strategy",
-          description: "Developing a comprehensive content strategy for Q3 and Q4.",
-          budget: 2800,
-          spent: 1400,
-          deadline: "2023-08-10",
-          progress: 50,
-          status: "in_progress",
-          freelancer: {
-            name: "Emily Rodriguez",
-            avatar: "https://randomuser.me/api/portraits/women/33.jpg",
-            rating: 4.7,
-          },
-        },
-      ])
-
-      setSavedFreelancers([
-        {
-          id: 101,
-          name: "David Wilson",
-          title: "Full Stack Developer",
-          avatar: "https://randomuser.me/api/portraits/men/22.jpg",
-          hourlyRate: 65,
-          rating: 4.9,
-          reviews: 37,
-          skills: ["React", "Node.js", "MongoDB", "AWS"],
-          availability: "Full-time",
-        },
-        {
-          id: 102,
-          name: "Jessica Lee",
-          title: "UI/UX Designer",
-          avatar: "https://randomuser.me/api/portraits/women/56.jpg",
-          hourlyRate: 55,
-          rating: 5.0,
-          reviews: 42,
-          skills: ["UI Design", "UX Research", "Figma", "Adobe XD"],
-          availability: "Part-time",
-        },
-        {
-          id: 103,
-          name: "Robert Taylor",
-          title: "Digital Marketing Specialist",
-          avatar: "https://randomuser.me/api/portraits/men/78.jpg",
-          hourlyRate: 45,
-          rating: 4.7,
-          reviews: 28,
-          skills: ["SEO", "Content Marketing", "Social Media", "Google Ads"],
-          availability: "Contract",
-        },
-      ])
-
-      setIsLoading(false)
+  // Filter projects based on active tab and search query
+  const filteredProjects = projects.filter(project => {
+    // Filter by search query
+    const matchesSearch = project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         project.description.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // Filter by tab
+    let matchesTab = true;
+    if (activeTab === "active") {
+      matchesTab = project.status === "in-progress" || project.status === "active";
+    } else if (activeTab === "completed") {
+      matchesTab = project.status === "completed";
+    } else if (activeTab === "draft") {
+      matchesTab = project.status === "draft";
     }
-
-    loadDashboardData()
-  }, [])
+    // activeTab === "all" shows all projects
+    
+    return matchesSearch && matchesTab;
+  });
 
   if (isLoading) {
     return (
@@ -255,6 +480,24 @@ const ClientDashboard = () => {
         <div className="flex flex-col items-center">
           <div className="w-16 h-16 border-4 border-[#9333EA] border-t-transparent rounded-full animate-spin"></div>
           <p className="mt-4 text-white">Loading your dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#0a0a0f]">
+        <div className="flex flex-col items-center text-center max-w-md">
+          <AlertTriangle className="w-16 h-16 text-red-500 mb-4" />
+          <h2 className="text-2xl font-bold text-white mb-2">Something went wrong</h2>
+          <p className="text-gray-400 mb-6">{error}</p>
+          <button 
+            onClick={refreshData}
+            className="bg-[#9333EA] hover:bg-[#a855f7] text-white px-6 py-2 rounded-md transition-colors"
+          >
+            Try Again
+          </button>
         </div>
       </div>
     )
@@ -359,7 +602,7 @@ const ClientDashboard = () => {
               </div>
               <div>
                 <p className="text-gray-400 text-xs">Completion Rate</p>
-                <p className="font-medium">{Math.round((stats.projects.completed / stats.projects.total) * 100)}%</p>
+                <p className="font-medium">{stats.projects.completionRate || 0}%</p>
               </div>
             </div>
           </div>
@@ -369,7 +612,7 @@ const ClientDashboard = () => {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-gray-400 text-sm">Total Spendings</p>
-                <h3 className="text-2xl font-bold mt-1">PKR {userProfile?.totalSpent}</h3>
+                <h3 className="text-2xl font-bold mt-1">PKR {formatCurrency(userProfile?.totalSpent || 0)}</h3>
                
               </div>
               <div className="bg-[#9333EA]/20 p-3 rounded-lg">
@@ -458,10 +701,28 @@ const ClientDashboard = () => {
               <div className="p-6 border-b border-[#2d2d3a]">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-bold">My Projects</h2>
-                  <button className="flex items-center gap-2 text-[#9333EA] hover:text-[#a855f7] text-sm">
-                    <Plus size={16} />
-                    <span>New Project</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {lastUpdated && (
+                      <span className="text-xs text-gray-500">
+                        Last updated: {formatDate(lastUpdated)} {lastUpdated.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    )}
+                    <button 
+                      onClick={refreshData}
+                      className="flex items-center gap-2 text-gray-400 hover:text-[#9333EA] text-sm transition-colors"
+                      disabled={isLoading}
+                    >
+                      <TrendingUp size={16} />
+                      <span>Refresh</span>
+                    </button>
+                    <button 
+                      onClick={() => navigate("/client/post-job")}
+                      className="flex items-center gap-2 text-[#9333EA] hover:text-[#a855f7] text-sm"
+                    >
+                      <Plus size={16} />
+                      <span>New Project</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Search and Filter */}
@@ -521,14 +782,19 @@ const ClientDashboard = () => {
 
               {/* Project Cards */}
               <div className="p-4 grid gap-4">
-                {projects.map((project) => (
+                {filteredProjects.map((project) => (
                   <ProjectCard key={project.id} project={project} />
                 ))}
 
-                {projects.length === 0 && (
+                {filteredProjects.length === 0 && (
                   <div className="text-center py-8">
-                    <p className="text-gray-400">No projects found.</p>
-                    <button className="mt-4 bg-[#9333EA] hover:bg-[#a855f7] text-white px-4 py-2 rounded-md transition-colors">
+                    <p className="text-gray-400">
+                      {searchQuery ? "No projects match your search." : "No projects found."}
+                    </p>
+                    <button 
+                      onClick={() => navigate("/client/post-job")}
+                      className="mt-4 bg-[#9333EA] hover:bg-[#a855f7] text-white px-4 py-2 rounded-md transition-colors"
+                    >
                       Create New Project
                     </button>
                   </div>

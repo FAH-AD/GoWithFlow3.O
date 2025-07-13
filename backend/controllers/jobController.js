@@ -478,26 +478,26 @@ export const addTeamMember = async (req, res) => {
 };
 
 /*
- * @desc    Complete a job
+ * @desc    Complete a job (Client can mark as completed)
  * @route   PUT /api/jobs/:id/complete
  * @access  Private/Client
  */
 export const completeJob = async (req, res) => {
   try {
-    const job = await Job.findById(req.params.id);
+    const job = await Job.findById(req.params.id).populate('client hiredFreelancer');
     
     if (!job) {
       return customErrorHandler(res, 'Job not found', 404);
     }
     
     // Check if user is the job owner
-    if (job.client.toString() !== req.user._id.toString()) {
+    if (job.client._id.toString() !== req.user._id.toString()) {
       return customErrorHandler(res, 'Not authorized. You can only complete your own jobs.', 403);
     }
     
     // Check if job is in progress
     if (job.status !== 'in-progress') {
-      return customErrorHandler(res,  `Cannot complete job ${job.status}`, 400);
+      return customErrorHandler(res, `Cannot complete job with status: ${job.status}`, 400);
     }
     
     // Update job status
@@ -505,33 +505,56 @@ export const completeJob = async (req, res) => {
     job.completionDate = new Date();
     await job.save();
     
-    // Get the hired freelancer
-    const hiredFreelancer = await User.findById(job.hiredFreelancer);
-    const client = await User.findById(job.client);
+    // Create notifications for review requests
+    if (job.hiredFreelancer) {
+      await Notification.create({
+        recipient: job.hiredFreelancer._id,
+        type: 'job-completed',
+        title: 'Job Completed - Review Requested',
+        message: `The job "${job.title}" has been completed. Please leave a review for the client.`,
+        data: {
+          job: job._id,
+          client: job.client._id,
+          action: 'review_client'
+        },
+      });
+    }
 
-    // Send email notifications
-    await sendEmail({
-     to: hiredFreelancer.email,
-     subject: 'Job Completed',
-      text:`The job "${job.title}" has been marked as completed by the client.`}
-    );
-      await sendEmail({
-      to: client.email,
-      subject: 'Job Marked as Completed',
-      text: `You've marked the job "${job.title}" as completed.`
+    await Notification.create({
+      recipient: job.client._id,
+      type: 'job-completed',
+      title: 'Job Completed - Review Requested',
+      message: `You've marked the job "${job.title}" as completed. Please leave a review for the freelancer.`,
+      data: {
+        job: job._id,
+        freelancer: job.hiredFreelancer?._id,
+        action: 'review_freelancer'
+      },
     });
 
-    await sendEmail({
-     to: req.user.email,
-      subject:'Job Marked as Completed',
-      text:`You've marked the job "${job.title}" as completed.`}
-    );
-
-    // Create notification for freelancer
+    // Send email notifications
+    if (job.hiredFreelancer) {
+      await sendEmail({
+        to: job.hiredFreelancer.email,
+        subject: 'Job Completed - Review Requested',
+        text: `The job "${job.title}" has been marked as completed by the client. Please log in to leave a review and provide feedback.`
+      });
+    }
     
+    await sendEmail({
+      to: job.client.email,
+      subject: 'Job Marked as Completed',
+      text: `You've marked the job "${job.title}" as completed. Please log in to leave a review for the freelancer.`
+    });
     
     return successResponse(res, 200, {
-      message: 'Job marked as completed',
+      message: 'Job marked as completed successfully. Review notifications sent.',
+      job: {
+        _id: job._id,
+        title: job.title,
+        status: job.status,
+        completionDate: job.completionDate
+      }
     });
   } catch (error) {
     console.error('Complete job error:', error);
@@ -545,17 +568,17 @@ export const cancelJob = async (req, res) => {
     const job = await Job.findById(req.params.id);
     
     if (!job) {
-      return errorResponse(res, 'Job not found', 404);
+      return errorResponse(res, 404, 'Job not found');
     }
     
     // Check if user is the job owner or admin
     if (job.client.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
-      return errorResponse(res, 'Not authorized. You can only cancel your own jobs.', 403);
+      return errorResponse(res, 403, 'Not authorized. You can only cancel your own jobs.');
     }
     
     // Check if job is already completed
     if (job.status === 'completed') {
-      return errorResponse(res, 'Cannot cancel a completed job', 400);
+      return errorResponse(res, 400, 'Cannot cancel a completed job');
     }
     
     // Update job status
@@ -1252,5 +1275,69 @@ export const getFreelancerCrowdsourcedJobs = async (req, res, next) => {
   } catch (error) {
     console.error('Error in getFreelancerCrowdsourcedJobs:', error);
     return next(new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Unable to fetch crowdsourced jobs.'));
+  }
+};
+
+/*
+ * @desc    Submit work for job completion (Freelancer submits final work)
+ * @route   PUT /api/jobs/:id/submit-work
+ * @access  Private/Freelancer
+ */
+export const submitWorkForCompletion = async (req, res) => {
+  try {
+    const { message, attachments } = req.body;
+    const job = await Job.findById(req.params.id).populate('client hiredFreelancer');
+    
+    if (!job) {
+      return customErrorHandler(res, 'Job not found', 404);
+    }
+    
+    // Check if user is the hired freelancer
+    if (!job.hiredFreelancer || job.hiredFreelancer._id.toString() !== req.user._id.toString()) {
+      return customErrorHandler(res, 'Not authorized. You must be the hired freelancer.', 403);
+    }
+    
+    // Check if job is in progress
+    if (job.status !== 'in-progress') {
+      return customErrorHandler(res, `Cannot submit work for job with status: ${job.status}`, 400);
+    }
+    
+    // Add work submission data to job
+    job.workSubmission = {
+      message: message || '',
+      attachments: attachments || [],
+      submittedAt: new Date(),
+      status: 'pending_client_review'
+    };
+    
+    await job.save();
+    
+    // Create notification for client
+    await Notification.create({
+      recipient: job.client._id,
+      type: 'job-completed',
+      title: 'Work Submitted for Review',
+      message: `${job.hiredFreelancer.firstName} has submitted work for the job "${job.title}". Please review and mark as completed.`,
+      data: {
+        job: job._id,
+        freelancer: job.hiredFreelancer._id,
+        action: 'review_work'
+      },
+    });
+
+    // Send email notification to client
+    await sendEmail({
+      to: job.client.email,
+      subject: 'Work Submitted for Review',
+      text: `${job.hiredFreelancer.firstName} ${job.hiredFreelancer.lastName} has submitted work for the job "${job.title}". Please log in to review and mark the job as completed.`
+    });
+    
+    return successResponse(res, 200, {
+      message: 'Work submitted successfully. Client has been notified for review.',
+      workSubmission: job.workSubmission
+    });
+  } catch (error) {
+    console.error('Submit work error:', error);
+    return customErrorHandler(res, error.message, 500);
   }
 };

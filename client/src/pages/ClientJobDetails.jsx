@@ -20,25 +20,33 @@ import {
   CheckSquare,
   Star,
   MapPin,
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import Navbar from "../components/Navbar";
-import useConversation from "../components/useConversation";
+} from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
+import Navbar from "../components/Navbar"
+import JobCompletionModal from "../components/JobCompletionModal"
+import ReviewModal from "../components/ReviewModal"
+import { jobCompletionService, reviewService } from "../services/reviewService"
+import ReviewsList from "../components/ReviewsList"
 
 const ClientJobDetails = () => {
-  const { jobId } = useParams();
-  const navigate = useNavigate();
-  const user = useSelector((state) => state.Auth.user);
-  const [job, setJob] = useState(null);
-  const [freelancerProfile, setFreelancerProfile] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [expandedMilestones, setExpandedMilestones] = useState({});
-  const [newMilestoneOpen, setNewMilestoneOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("overview");
-  const { startConversation } = useConversation({ user });
-  const [approvingMilestone, setApprovingMilestone] = useState(null);
-  const token = localStorage.getItem("authToken");
+  const { jobId } = useParams()
+  const navigate = useNavigate()
+  const user = useSelector((state) => state.Auth.user)
+  const [job, setJob] = useState(null)
+  const [freelancerProfile, setFreelancerProfile] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [jobReviews, setJobReviews] = useState(null)
+  const [reviewsLoading, setReviewsLoading] = useState(false)
+  const [hasUserReviewed, setHasUserReviewed] = useState(false)
+  const [error, setError] = useState(null)
+  const [expandedMilestones, setExpandedMilestones] = useState({})
+  const [newMilestoneOpen, setNewMilestoneOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState("overview")
+  const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false)
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
+  const [reviewRecipient, setReviewRecipient] = useState(null)
+
+  const token = localStorage.getItem("authToken")
 
   useEffect(() => {
     if (!user) {
@@ -73,15 +81,45 @@ const ClientJobDetails = () => {
       console.log("Job details fetched:", response.data.data);
 
       // Fetch freelancer profile if job has an assigned freelancer
+      if (response.data.data.hiredFreelancer) {
+        await fetchFreelancerProfile(response.data.data.hiredFreelancer)
+      }
 
-      await fetchFreelancerProfile(response.data.data.hiredFreelancer);
+      // Fetch job reviews if job is completed
+      if (response.data.data.status === 'completed') {
+        await fetchJobReviews()
+      }
+      
     } catch (err) {
       console.error("Error fetching job details:", err);
       setError("Failed to fetch job details");
     } finally {
       setIsLoading(false);
     }
-  };
+  }
+
+  const fetchJobReviews = async () => {
+    setReviewsLoading(true)
+    try {
+      const reviewsData = await reviewService.getJobReviews(jobId)
+      console.log('Job reviews data received:', reviewsData)
+      setJobReviews(reviewsData)
+      
+      // Check if current user has already reviewed
+      const clientReview = reviewsData.clientReview
+      const freelancerReview = reviewsData.freelancerReview
+      
+      if (user.role === 'client' && clientReview) {
+        setHasUserReviewed(true)
+      } else if (user.role === 'freelancer' && freelancerReview) {
+        setHasUserReviewed(true)
+      }
+    } catch (error) {
+      console.error('Error fetching job reviews:', error)
+    } finally {
+      setReviewsLoading(false)
+    }
+  }
 
   const fetchFreelancerProfile = async (freelancerId) => {
     try {
@@ -97,10 +135,14 @@ const ClientJobDetails = () => {
       );
 
       if (response.ok) {
-        const profileData = await response.json();
-        setFreelancerProfile(profileData.data.user);
-        console.log("Freelancer profile fetched:", profileData.data.user);
+        const profileData = await response.json()
+        console.log("Freelancer profile data:", profileData.data.user._id)
+        setFreelancerProfile(profileData.data.user)
+
       }
+
+      console.log("Freelancer profile fetched successfully:", freelancerProfile)
+
     } catch (err) {
       console.error("Error fetching freelancer profile:", err);
     }
@@ -363,7 +405,38 @@ const ClientJobDetails = () => {
           </form>
         </motion.div>
       </motion.div>
-    );
+    )
+  }
+
+  // Handle job completion
+  const handleCompleteJob = async () => {
+    try {
+      await jobCompletionService.completeJob(jobId);
+      await fetchJobDetails();
+      alert('Job marked as completed successfully! Both you and the freelancer will be prompted to leave reviews.');
+    } catch (error) {
+      console.error('Error completing job:', error);
+      alert('Failed to complete job. Please try again.');
+    }
+  };
+
+  // Handle starting review process
+  const handleStartReview = (recipient) => {
+    setReviewRecipient(recipient);
+    setIsReviewModalOpen(true);
+  };
+
+  // Handle review submission
+  const handleSubmitReview = async (reviewData) => {
+    try {
+      await reviewService.createReview(reviewData);
+      alert('Review submitted successfully!');
+      setHasUserReviewed(true); // Update state immediately
+      await fetchJobDetails(); // Refresh job details and reviews
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      alert('Failed to submit review. Please try again.');
+    }
   };
 
   if (isLoading) {
@@ -487,6 +560,40 @@ const ClientJobDetails = () => {
                   </p>
                 </div>
               </div>
+
+              {/* Job Actions */}
+              {job.status === 'in-progress' && (job.workSubmission || job.milestones?.some(m => m.status === 'submitted')) && (
+                <div className="mt-6 p-4 bg-[#2d2d3a] rounded-lg">
+                  <h3 className="text-lg font-semibold mb-4">Job Actions</h3>
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      onClick={() => setIsCompletionModalOpen(true)}
+                      className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md transition-colors flex items-center"
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Complete Job
+                    </button>
+                  </div>
+                  {job.workSubmission && (
+                    <div className="mt-3 p-3 bg-[#1c1c24] rounded-lg">
+                      <p className="text-sm text-green-400 mb-1">✓ Work submitted by freelancer</p>
+                      <p className="text-xs text-gray-400">Review the submitted work and mark the job as completed when satisfied.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {job.status === 'completed' && !hasUserReviewed && freelancerProfile && (
+                <div className="mt-6 p-4 bg-[#2d2d3a] rounded-lg">
+                  <h3 className="text-lg font-semibold mb-4">Leave Review</h3>
+                  <button
+                    onClick={() => handleStartReview(freelancerProfile)}
+                    className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
+                  >
+                    Review Freelancer
+                  </button>
+                </div>
+              )}
             </motion.div>
 
             {/* Freelancer Profile */}
@@ -880,6 +987,44 @@ const ClientJobDetails = () => {
                 )}
               </div>
             </motion.div>
+
+            {/* Job Reviews Section */}
+            {job.status === 'completed' && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.3 }}
+                className="bg-[#1c1c24] rounded-lg p-6 mb-6"
+              >
+                <h2 className="text-xl font-bold mb-6">Project Reviews</h2>
+                
+                {reviewsLoading ? (
+                  <div className="flex justify-center items-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                  </div>
+                ) : jobReviews && (jobReviews.clientReview || jobReviews.freelancerReview) ? (
+                  <div className="space-y-6">
+                    {jobReviews.clientReview && (
+                      <div>
+                        <h4 className="text-lg font-semibold text-gray-300 mb-3">Client's Review</h4>
+                        <ReviewsList reviews={[jobReviews.clientReview]} />
+                      </div>
+                    )}
+                    
+                    {jobReviews.freelancerReview && (
+                      <div>
+                        <h4 className="text-lg font-semibold text-gray-300 mb-3">Freelancer's Review</h4>
+                        <ReviewsList reviews={[jobReviews.freelancerReview]} />
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-gray-400">No reviews available for this project yet.</p>
+                  </div>
+                )}
+              </motion.div>
+            )}
           </>
         )}
       </div>
@@ -889,6 +1034,24 @@ const ClientJobDetails = () => {
           <NewMilestoneForm onClose={() => setNewMilestoneOpen(false)} />
         )}
       </AnimatePresence>
+
+      {/* Job Completion Modal */}
+      <JobCompletionModal
+        isOpen={isCompletionModalOpen}
+        onClose={() => setIsCompletionModalOpen(false)}
+        job={job}
+        userRole="client"
+        onComplete={handleCompleteJob}
+      />
+
+      {/* Review Modal */}
+      <ReviewModal
+        isOpen={isReviewModalOpen}
+        onClose={() => setIsReviewModalOpen(false)}
+        job={job}
+        recipient={freelancerProfile}
+        onSubmitReview={handleSubmitReview}
+      />
     </div>
   );
 };

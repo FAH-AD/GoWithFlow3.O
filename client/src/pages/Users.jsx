@@ -21,6 +21,7 @@ import {
   Eye,
 } from "lucide-react"
 import Navbar from "../components/Navbar"
+import { adminApi } from "../services/adminApi"
 
 const AdminUsers = () => {
   const navigate = useNavigate()
@@ -59,130 +60,234 @@ const AdminUsers = () => {
 
   // Check if user is authorized (admin role)
   useEffect(() => {
+    console.log('Users component - Current user:', user);
+    console.log('Users component - Auth token:', localStorage.getItem('authToken') ? 'Token exists' : 'No token');
+    
     if (!user) {
+      console.log('No user found, redirecting to login');
       navigate("/login", { state: { from: "/admin/users", message: "Please login to access admin panel" } })
     } else if (user.role !== "admin") {
+      console.log('User is not admin, redirecting to home');
       navigate("/", { state: { message: "You don't have permission to access this page" } })
     } else {
+      console.log('User is admin, fetching users');
       fetchUsers()
     }
   }, [user, navigate])
 
+  // Test authentication
+  const testAuth = async () => {
+    console.log('=== Authentication Test ===');
+    console.log('Current user from Redux:', user);
+    console.log('Auth token:', localStorage.getItem('authToken'));
+    console.log('User role:', user?.role);
+    
+    // Test basic connectivity
+    try {
+      console.log('Testing basic connectivity...');
+      const testResponse = await fetch('http://localhost:5000/api/admin/users', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      console.log('Basic fetch response status:', testResponse.status);
+      console.log('Basic fetch response headers:', Object.fromEntries(testResponse.headers));
+      
+      if (testResponse.ok) {
+        const data = await testResponse.json();
+        console.log('Basic fetch response data:', data);
+      } else {
+        console.log('Basic fetch failed with status:', testResponse.status);
+        const errorText = await testResponse.text();
+        console.log('Error response text:', errorText);
+      }
+    } catch (error) {
+      console.error('Basic fetch failed:', error);
+    }
+    
+    // Test using adminApi
+    try {
+      console.log('Testing Dashboard API call...');
+      const response = await adminApi.getDashboardStats();
+      console.log('Dashboard API test successful:', response);
+    } catch (error) {
+      console.error('Dashboard API test failed:', error);
+    }
+    
+    // Test users API specifically
+    try {
+      console.log('Testing Users API call...');
+      const response = await adminApi.getAllUsers({});
+      console.log('Users API test successful:', response);
+    } catch (error) {
+      console.error('Users API test failed:', error);
+    }
+  }
+
   // Fetch users
   const fetchUsers = async () => {
+    console.log('fetchUsers called');
     setIsLoading(true)
     try {
-      // In a real app, you would make an API call to fetch users
-      // For this demo, we'll use mock data
-      await new Promise((resolve) => setTimeout(resolve, 800))
+      const params = {
+        page: 1,
+        limit: 1000, // Get all users for client-side filtering
+        // Removed search parameter since we're doing client-side search now
+      }
 
-      const mockUsers = generateMockUsers(100)
-      setUsers(mockUsers)
-      setTotalUsers(mockUsers.length)
-      applyFilters(mockUsers, searchQuery, filterRole, filterStatus, sortBy)
+      console.log('Making API call to getAllUsers with params:', params);
+      const response = await adminApi.getAllUsers(params)
+      console.log('Raw API response:', response);
+      console.log('Response data structure:', response.data);
+      console.log('Response.data.users:', response.data.users);
+      console.log('Response.data directly:', response.data);
+      
+      // Handle different response structures
+      let usersData = []
+      
+      if (Array.isArray(response.data)) {
+        // If response.data is directly an array of users
+        usersData = response.data
+        console.log('Response.data is an array:', usersData.length, 'users')
+      } else if (response.data.data && response.data.data.users && Array.isArray(response.data.data.users)) {
+        // If users are nested in response.data.data.users (our current API structure)
+        usersData = response.data.data.users
+        console.log('Found users in response.data.data.users:', usersData.length, 'users')
+      } else if (response.data.users && Array.isArray(response.data.users)) {
+        // If users are nested in response.data.users
+        usersData = response.data.users
+        console.log('Found users in response.data.users:', usersData.length, 'users')
+      } else if (response.data.data && Array.isArray(response.data.data)) {
+        // If users are nested in response.data.data as direct array
+        usersData = response.data.data
+        console.log('Found users in response.data.data:', usersData.length, 'users')
+      } else if (typeof response.data === 'object' && response.data._id) {
+        // If response.data is a single user object, wrap it in an array
+        usersData = [response.data]
+        console.log('Response.data is a single user object, wrapping in array')
+      } else {
+        console.log('No users found in response, using empty array')
+        usersData = []
+      }
+      
+      console.log('Final extracted usersData:', usersData);
+      console.log('Is usersData an array?', Array.isArray(usersData));
+      
+      // Log sample user data to understand structure
+      if (usersData.length > 0) {
+        console.log('Sample user data structure:', usersData[0]);
+        console.log('User fields:', Object.keys(usersData[0]));
+      }
+      
+      // Ensure usersData is always an array and normalize user data
+      const safeUsersData = Array.isArray(usersData) ? usersData.map(user => ({
+        ...user,
+        // Ensure required fields exist with defaults
+        id: user.id || user._id,
+        status: user.status || user.isActive === false ? 'deactivated' : 'active',
+        role: user.role || 'user'
+      })) : []
+      
+      console.log('Users data received:', safeUsersData.length, 'users');
+      setUsers(safeUsersData)
+      setTotalUsers(safeUsersData.length)
+      applyFilters(safeUsersData, searchQuery, filterRole, filterStatus, sortBy)
     } catch (err) {
       console.error("Failed to fetch users:", err)
+      console.error("Error details:", err.response?.data);
+      setActionError("Failed to fetch users. Please try again.")
+      // Fallback to empty array on error
+      setUsers([])
+      setTotalUsers(0)
+      setFilteredUsers([])
     } finally {
       setIsLoading(false)
     }
   }
 
-  // Generate mock users
-  const generateMockUsers = (count) => {
-    const roles = ["freelancer", "client", "admin"]
-    const statuses = ["active", "pending", "deactivated", "warned"]
-    const names = [
-      "Emma Thompson",
-      "Michael Chen",
-      "Sophia Rodriguez",
-      "James Wilson",
-      "Olivia Parker",
-      "William Davis",
-      "Ava Martinez",
-      "Benjamin Taylor",
-      "Isabella Johnson",
-      "Ethan Brown",
-      "Mia Anderson",
-      "Alexander White",
-      "Charlotte Lewis",
-      "Daniel Harris",
-      "Amelia Clark",
-      "Matthew Walker",
-      "Harper Young",
-      "Joseph Allen",
-      "Abigail King",
-      "David Wright",
-    ]
-
-    return Array.from({ length: count }, (_, i) => {
-      const role = roles[Math.floor(Math.random() * roles.length)]
-      const status = statuses[Math.floor(Math.random() * statuses.length)]
-      const name = names[Math.floor(Math.random() * names.length)]
-      const email = `${name.toLowerCase().replace(/\s+/g, ".")}@${role === "freelancer" ? "freelancer" : role === "client" ? "company" : "admin"}.com`
-
-      // Generate a random date within the last 90 days
-      const joinedDate = new Date()
-      joinedDate.setDate(joinedDate.getDate() - Math.floor(Math.random() * 90))
-
-      return {
-        id: i + 1,
-        name,
-        email,
-        role,
-        status,
-        joined: joinedDate.toISOString(),
-        lastActive: status !== "deactivated" ? new Date().toISOString() : joinedDate.toISOString(),
-        projects: Math.floor(Math.random() * 20),
-        earnings: role === "freelancer" ? Math.floor(Math.random() * 10000) : 0,
-        spent: role === "client" ? Math.floor(Math.random() * 15000) : 0,
-        avatar: `https://randomuser.me/api/portraits/${Math.random() > 0.5 ? "women" : "men"}/${Math.floor(Math.random() * 100)}.jpg`,
-        verified: Math.random() > 0.2,
-        warnings: Math.floor(Math.random() * 3),
-        location: ["United States", "Canada", "United Kingdom", "Australia", "Germany", "France", "India", "Japan"][
-          Math.floor(Math.random() * 8)
-        ],
-      }
-    })
-  }
-
   // Apply filters and search
   const applyFilters = (allUsers, query, role, status, sort) => {
+    console.log('=== applyFilters called ===');
+    console.log('allUsers:', allUsers);
+    console.log('allUsers length:', allUsers?.length);
+    console.log('query:', query);
+    console.log('role filter:', role);
+    console.log('status filter:', status);
+    console.log('sort:', sort);
+    
+    // Ensure allUsers is always an array
+    if (!Array.isArray(allUsers)) {
+      console.warn('applyFilters received non-array data:', allUsers)
+      setFilteredUsers([])
+      setTotalUsers(0)
+      return
+    }
+
     let result = [...allUsers]
+    console.log('Initial result length:', result.length);
 
     // Apply search query
     if (query) {
       const lowercaseQuery = query.toLowerCase()
       result = result.filter(
-        (user) =>
-          user.name.toLowerCase().includes(lowercaseQuery) ||
-          user.email.toLowerCase().includes(lowercaseQuery) ||
-          user.id.toString().includes(lowercaseQuery),
+        (user) => {
+          const userName = user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim()
+          const userEmail = user.email || ''
+          const userId = (user.id || user._id || '').toString()
+          
+          return userName.toLowerCase().includes(lowercaseQuery) ||
+                 userEmail.toLowerCase().includes(lowercaseQuery) ||
+                 userId.includes(lowercaseQuery)
+        }
       )
     }
 
     // Apply role filter
     if (role !== "all") {
+      console.log('Applying role filter:', role);
+      console.log('Sample user roles before filter:', result.slice(0, 3).map(u => ({ name: u.name, role: u.role })));
       result = result.filter((user) => user.role === role)
+      console.log('Result after role filter:', result.length);
     }
 
     // Apply status filter
     if (status !== "all") {
+      console.log('Applying status filter:', status);
+      console.log('Sample user statuses before filter:', result.slice(0, 3).map(u => ({ name: u.name, status: u.status })));
       result = result.filter((user) => user.status === status)
+      console.log('Result after status filter:', result.length);
     }
 
     // Apply sorting
     switch (sort) {
       case "newest":
-        result.sort((a, b) => new Date(b.joined) - new Date(a.joined))
+        result.sort((a, b) => {
+          const dateA = new Date(b.joined || b.createdAt || 0)
+          const dateB = new Date(a.joined || a.createdAt || 0)
+          return dateA - dateB
+        })
         break
       case "oldest":
-        result.sort((a, b) => new Date(a.joined) - new Date(b.joined))
+        result.sort((a, b) => {
+          const dateA = new Date(a.joined || a.createdAt || 0)
+          const dateB = new Date(b.joined || b.createdAt || 0)
+          return dateA - dateB
+        })
         break
       case "a-z":
-        result.sort((a, b) => a.name.localeCompare(b.name))
+        result.sort((a, b) => {
+          const nameA = a.name || `${a.firstName || ''} ${a.lastName || ''}`.trim()
+          const nameB = b.name || `${b.firstName || ''} ${b.lastName || ''}`.trim()
+          return nameA.localeCompare(nameB)
+        })
         break
       case "z-a":
-        result.sort((a, b) => b.name.localeCompare(a.name))
+        result.sort((a, b) => {
+          const nameA = a.name || `${a.firstName || ''} ${a.lastName || ''}`.trim()
+          const nameB = b.name || `${b.firstName || ''} ${b.lastName || ''}`.trim()
+          return nameB.localeCompare(nameA)
+        })
         break
       default:
         break
@@ -191,30 +296,39 @@ const AdminUsers = () => {
     setFilteredUsers(result)
     setTotalUsers(result.length)
     setCurrentPage(1) // Reset to first page when filters change
+    
+    console.log('=== applyFilters results ===');
+    console.log('Final filtered users count:', result.length);
+    console.log('Sample filtered users:', result.slice(0, 2));
+    console.log('Setting totalUsers to:', result.length);
   }
 
-  // Handle search
+  // Handle search with debounce
   const handleSearch = (e) => {
     const query = e.target.value
     setSearchQuery(query)
+    // Apply filters immediately with local state instead of API call
     applyFilters(users, query, filterRole, filterStatus, sortBy)
   }
 
-  // Handle role filter
+  // Handle role filter  
   const handleRoleFilter = (role) => {
     setFilterRole(role)
+    // Apply filters immediately for dropdown selections
     applyFilters(users, searchQuery, role, filterStatus, sortBy)
   }
 
   // Handle status filter
   const handleStatusFilter = (status) => {
-    setFilterStatus(status)
+    setFilterStatus(status) 
+    // Apply filters immediately for dropdown selections
     applyFilters(users, searchQuery, filterRole, status, sortBy)
   }
 
   // Handle sort
   const handleSort = (sort) => {
     setSortBy(sort)
+    // Apply filters immediately for dropdown selections  
     applyFilters(users, searchQuery, filterRole, filterStatus, sort)
   }
 
@@ -257,90 +371,109 @@ const AdminUsers = () => {
     }
 
     try {
-      // In a real app, you would make an API call to send the warning
-      await new Promise((resolve) => setTimeout(resolve, 800))
+      await adminApi.sendUserWarning(selectedUser.id, warningMessage)
 
-      // Update user status in the local state
-      const updatedUsers = users.map((u) => {
-        if (u.id === selectedUser.id) {
-          return { ...u, status: "warned", warnings: u.warnings + 1 }
-        }
-        return u
-      })
-
-      setUsers(updatedUsers)
-      applyFilters(updatedUsers, searchQuery, filterRole, filterStatus, sortBy)
+      // Refresh users list to get updated data
+      await fetchUsers()
+      
       setShowWarningModal(false)
-      setActionSuccess(`Warning sent to ${selectedUser.name}`)
+      setWarningMessage("")
+      setActionError(null)
+      setActionSuccess(`Warning sent to ${selectedUser.name || `${selectedUser.firstName} ${selectedUser.lastName}`}`)
 
       // Clear success message after 3 seconds
       setTimeout(() => {
         setActionSuccess(null)
       }, 3000)
     } catch (err) {
-      setActionError("Failed to send warning. Please try again.")
+      console.error("Failed to send warning:", err)
+      setActionError(err.response?.data?.message || "Failed to send warning. Please try again.")
     }
   }
 
   // Submit deactivation
   const submitDeactivation = async () => {
     try {
-      // In a real app, you would make an API call to deactivate the user
-      await new Promise((resolve) => setTimeout(resolve, 800))
+      await adminApi.deactivateUser(selectedUser.id)
 
-      // Update user status in the local state
-      const updatedUsers = users.map((u) => {
-        if (u.id === selectedUser.id) {
-          return { ...u, status: "deactivated" }
-        }
-        return u
-      })
-
-      setUsers(updatedUsers)
-      applyFilters(updatedUsers, searchQuery, filterRole, filterStatus, sortBy)
+      // Refresh users list to get updated data
+      await fetchUsers()
+      
       setShowDeactivateModal(false)
-      setActionSuccess(`${selectedUser.name}'s account has been deactivated`)
+      setActionError(null)
+      setActionSuccess(`${selectedUser.name || `${selectedUser.firstName} ${selectedUser.lastName}`}'s account has been deactivated`)
 
       // Clear success message after 3 seconds
       setTimeout(() => {
         setActionSuccess(null)
       }, 3000)
     } catch (err) {
-      setActionError("Failed to deactivate user. Please try again.")
+      console.error("Failed to deactivate user:", err)
+      setActionError(err.response?.data?.message || "Failed to deactivate user. Please try again.")
     }
   }
 
   // Reactivate user
   const handleReactivateUser = async (user) => {
     try {
-      // In a real app, you would make an API call to reactivate the user
-      await new Promise((resolve) => setTimeout(resolve, 800))
+      await adminApi.reactivateUser(user.id)
 
-      // Update user status in the local state
-      const updatedUsers = users.map((u) => {
-        if (u.id === user.id) {
-          return { ...u, status: "active" }
-        }
-        return u
-      })
-
-      setUsers(updatedUsers)
-      applyFilters(updatedUsers, searchQuery, filterRole, filterStatus, sortBy)
-      setActionSuccess(`${user.name}'s account has been reactivated`)
+      // Refresh users list to get updated data
+      await fetchUsers()
+      
+      setActionError(null)
+      setActionSuccess(`${user.name || `${user.firstName} ${user.lastName}`}'s account has been reactivated`)
 
       // Clear success message after 3 seconds
       setTimeout(() => {
         setActionSuccess(null)
       }, 3000)
     } catch (err) {
-      setActionError("Failed to reactivate user. Please try again.")
+      console.error("Failed to reactivate user:", err)
+      setActionError(err.response?.data?.message || "Failed to reactivate user. Please try again.")
     }
   }
 
-  // Helper function to format date
+  // Helper function to generate a simple avatar
+  const generateAvatar = (name) => {
+    if (!name) return null
+    
+    // Create a simple colored background with initials
+    const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    const colors = [
+      '#9333EA', '#3B82F6', '#10B981', '#F59E0B', 
+      '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16'
+    ]
+    const colorIndex = name.length % colors.length
+    const backgroundColor = colors[colorIndex]
+    
+    // Return a data URL for the avatar
+    const canvas = document.createElement('canvas')
+    canvas.width = 40
+    canvas.height = 40
+    const ctx = canvas.getContext('2d')
+    
+    // Draw background
+    ctx.fillStyle = backgroundColor
+    ctx.fillRect(0, 0, 40, 40)
+    
+    // Draw initials
+    ctx.fillStyle = '#FFFFFF'
+    ctx.font = 'bold 16px Arial'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(initials, 20, 20)
+    
+    return canvas.toDataURL()
+  }
   const formatDate = (dateString) => {
+    if (!dateString) return "N/A"
     const options = { year: "numeric", month: "short", day: "numeric" }
-    return new Date(dateString).toLocaleDateString(undefined, options)
+    try {
+      return new Date(dateString).toLocaleDateString(undefined, options)
+    } catch (error) {
+      return "Invalid Date"
+    }
   }
 
   // Helper function to get status badge style
@@ -370,6 +503,50 @@ const AdminUsers = () => {
         return { bg: "bg-green-900/20", text: "text-green-400" }
       default:
         return { bg: "bg-gray-900/20", text: "text-gray-400" }
+    }
+  }
+
+  // Handle export
+  const handleExport = () => {
+    try {
+      if (!filteredUsers || filteredUsers.length === 0) {
+        setActionError('No users data to export')
+        return
+      }
+
+      const csvData = filteredUsers.map(user => ({
+        ID: user.id || user._id,
+        Name: user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+        Email: user.email,
+        Role: user.role,
+        Status: user.status,
+        'Joined Date': formatDate(user.joined || user.createdAt),
+        'Last Active': formatDate(user.lastActive || user.updatedAt),
+        Location: user.location || user.country || 'Not specified',
+        Verified: user.verified || user.isVerified ? 'Yes' : 'No',
+        Warnings: user.warnings || user.warningCount || 0
+      }))
+
+      const csvContent = [
+        Object.keys(csvData[0]).join(','),
+        ...csvData.map(row => Object.values(row).map(val => `"${val}"`).join(','))
+      ].join('\n')
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      link.setAttribute('href', url)
+      link.setAttribute('download', `users_export_${new Date().toISOString().split('T')[0]}.csv`)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      setActionSuccess('Users data exported successfully')
+      setTimeout(() => setActionSuccess(null), 3000)
+    } catch (err) {
+      console.error('Export failed:', err)
+      setActionError('Failed to export users data')
     }
   }
 
@@ -645,7 +822,10 @@ const AdminUsers = () => {
                 </div>
 
                 {/* Export Button */}
-                <button className="flex items-center gap-2 bg-[#1e1e2d] hover:bg-[#2d2d3a] text-white px-4 py-3 rounded-md border border-[#2d2d3a] transition-colors">
+                <button 
+                  onClick={handleExport}
+                  className="flex items-center gap-2 bg-[#1e1e2d] hover:bg-[#2d2d3a] text-white px-4 py-3 rounded-md border border-[#2d2d3a] transition-colors"
+                >
                   <Download size={16} />
                   <span>Export</span>
                 </button>
@@ -699,15 +879,28 @@ const AdminUsers = () => {
                     <tr key={user.id} className="border-t border-[#2d2d3a] hover:bg-[#1e1e2d]">
                       <td className="px-6 py-4">
                         <div className="flex items-center">
-                          <div className="h-10 w-10 rounded-full overflow-hidden mr-3">
-                            <img
-                              src={user.avatar || "/placeholder.svg"}
-                              alt={user.name}
-                              className="h-full w-full object-cover"
-                            />
+                          <div className="h-10 w-10 rounded-full overflow-hidden mr-3 bg-gray-600 flex items-center justify-center">
+                            {user.avatar || user.profileImage ? (
+                              <img
+                                src={user.avatar || user.profileImage}
+                                alt={user.name || `${user.firstName} ${user.lastName}`}
+                                className="h-full w-full object-cover"
+                                onError={(e) => {
+                                  // Replace with initials on error
+                                  const userName = user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'User'
+                                  const initials = userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+                                  e.target.style.display = 'none'
+                                  e.target.parentElement.innerHTML = `<div class="h-full w-full bg-purple-600 flex items-center justify-center text-white font-bold text-sm">${initials}</div>`
+                                }}
+                              />
+                            ) : (
+                              <div className="h-full w-full bg-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                                {((user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim()) || 'U').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                              </div>
+                            )}
                           </div>
                           <div>
-                            <p className="font-medium">{user.name}</p>
+                            <p className="font-medium">{user.name || `${user.firstName} ${user.lastName}`}</p>
                             <p className="text-gray-400 text-sm">{user.email}</p>
                           </div>
                         </div>
@@ -727,9 +920,9 @@ const AdminUsers = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 hidden md:table-cell text-gray-400 text-sm">
-                        {formatDate(user.joined)}
+                        {formatDate(user.joined || user.createdAt)}
                       </td>
-                      <td className="px-6 py-4 hidden lg:table-cell text-gray-400 text-sm">{user.location}</td>
+                      <td className="px-6 py-4 hidden lg:table-cell text-gray-400 text-sm">{user.location || user.country || "Not specified"}</td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button
@@ -845,12 +1038,24 @@ const AdminUsers = () => {
             <div className="p-6">
               <div className="flex flex-col md:flex-row gap-6">
                 <div className="flex-shrink-0">
-                  <div className="h-24 w-24 rounded-full overflow-hidden mb-4">
-                    <img
-                      src={selectedUser.avatar || "/placeholder.svg"}
-                      alt={selectedUser.name}
-                      className="h-full w-full object-cover"
-                    />
+                  <div className="h-24 w-24 rounded-full overflow-hidden mb-4 bg-gray-600 flex items-center justify-center">
+                    {selectedUser.avatar || selectedUser.profileImage ? (
+                      <img
+                        src={selectedUser.avatar || selectedUser.profileImage}
+                        alt={selectedUser.name || `${selectedUser.firstName} ${selectedUser.lastName}`}
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          const userName = selectedUser.name || `${selectedUser.firstName || ''} ${selectedUser.lastName || ''}`.trim() || 'User'
+                          const initials = userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+                          e.target.style.display = 'none'
+                          e.target.parentElement.innerHTML = `<div class="h-full w-full bg-purple-600 flex items-center justify-center text-white font-bold text-xl">${initials}</div>`
+                        }}
+                      />
+                    ) : (
+                      <div className="h-full w-full bg-purple-600 flex items-center justify-center text-white font-bold text-xl">
+                        {((selectedUser.name || `${selectedUser.firstName || ''} ${selectedUser.lastName || ''}`.trim()) || 'U').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                      </div>
+                    )}
                   </div>
                   <div className="flex flex-col gap-2">
                     <span
@@ -866,33 +1071,33 @@ const AdminUsers = () => {
                   </div>
                 </div>
                 <div className="flex-grow">
-                  <h3 className="text-xl font-bold mb-1">{selectedUser.name}</h3>
+                  <h3 className="text-xl font-bold mb-1">{selectedUser.name || `${selectedUser.firstName} ${selectedUser.lastName}`}</h3>
                   <p className="text-gray-400 mb-4">{selectedUser.email}</p>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     <div>
                       <p className="text-gray-400 text-sm">User ID</p>
-                      <p className="font-medium">{selectedUser.id}</p>
+                      <p className="font-medium">{selectedUser.id || selectedUser._id}</p>
                     </div>
                     <div>
                       <p className="text-gray-400 text-sm">Joined Date</p>
-                      <p className="font-medium">{formatDate(selectedUser.joined)}</p>
+                      <p className="font-medium">{formatDate(selectedUser.joined || selectedUser.createdAt)}</p>
                     </div>
                     <div>
                       <p className="text-gray-400 text-sm">Last Active</p>
-                      <p className="font-medium">{formatDate(selectedUser.lastActive)}</p>
+                      <p className="font-medium">{formatDate(selectedUser.lastActive || selectedUser.updatedAt)}</p>
                     </div>
                     <div>
                       <p className="text-gray-400 text-sm">Location</p>
-                      <p className="font-medium">{selectedUser.location}</p>
+                      <p className="font-medium">{selectedUser.location || selectedUser.country || "Not specified"}</p>
                     </div>
                     <div>
                       <p className="text-gray-400 text-sm">Verification</p>
-                      <p className="font-medium">{selectedUser.verified ? "Verified" : "Not Verified"}</p>
+                      <p className="font-medium">{selectedUser.verified || selectedUser.isVerified ? "Verified" : "Not Verified"}</p>
                     </div>
                     <div>
                       <p className="text-gray-400 text-sm">Warnings</p>
-                      <p className="font-medium">{selectedUser.warnings}</p>
+                      <p className="font-medium">{selectedUser.warnings || selectedUser.warningCount || 0}</p>
                     </div>
                   </div>
 
@@ -902,11 +1107,11 @@ const AdminUsers = () => {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="bg-[#1e1e2d] p-3 rounded-md">
                           <p className="text-gray-400 text-xs">Projects</p>
-                          <p className="text-lg font-bold">{selectedUser.projects}</p>
+                          <p className="text-lg font-bold">{selectedUser.projects || selectedUser.projectCount || 0}</p>
                         </div>
                         <div className="bg-[#1e1e2d] p-3 rounded-md">
                           <p className="text-gray-400 text-xs">Earnings</p>
-                          <p className="text-lg font-bold">${selectedUser.earnings.toLocaleString()}</p>
+                          <p className="text-lg font-bold">${(selectedUser.earnings || selectedUser.totalEarnings || 0).toLocaleString()}</p>
                         </div>
                       </div>
                     </div>
@@ -918,11 +1123,11 @@ const AdminUsers = () => {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="bg-[#1e1e2d] p-3 rounded-md">
                           <p className="text-gray-400 text-xs">Projects</p>
-                          <p className="text-lg font-bold">{selectedUser.projects}</p>
+                          <p className="text-lg font-bold">{selectedUser.projects || selectedUser.projectCount || 0}</p>
                         </div>
                         <div className="bg-[#1e1e2d] p-3 rounded-md">
                           <p className="text-gray-400 text-xs">Total Spent</p>
-                          <p className="text-lg font-bold">${selectedUser.spent.toLocaleString()}</p>
+                          <p className="text-lg font-bold">${(selectedUser.spent || selectedUser.totalSpent || 0).toLocaleString()}</p>
                         </div>
                       </div>
                     </div>
@@ -984,15 +1189,27 @@ const AdminUsers = () => {
             </div>
             <div className="p-6">
               <div className="flex items-center mb-4">
-                <div className="h-10 w-10 rounded-full overflow-hidden mr-3">
-                  <img
-                    src={selectedUser.avatar || "/placeholder.svg"}
-                    alt={selectedUser.name}
-                    className="h-full w-full object-cover"
-                  />
+                <div className="h-10 w-10 rounded-full overflow-hidden mr-3 bg-gray-600 flex items-center justify-center">
+                  {selectedUser.avatar || selectedUser.profileImage ? (
+                    <img
+                      src={selectedUser.avatar || selectedUser.profileImage}
+                      alt={selectedUser.name || `${selectedUser.firstName} ${selectedUser.lastName}`}
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        const userName = selectedUser.name || `${selectedUser.firstName || ''} ${selectedUser.lastName || ''}`.trim() || 'User'
+                        const initials = userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+                        e.target.style.display = 'none'
+                        e.target.parentElement.innerHTML = `<div class="h-full w-full bg-purple-600 flex items-center justify-center text-white font-bold text-sm">${initials}</div>`
+                      }}
+                    />
+                  ) : (
+                    <div className="h-full w-full bg-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                      {((selectedUser.name || `${selectedUser.firstName || ''} ${selectedUser.lastName || ''}`.trim()) || 'U').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                    </div>
+                  )}
                 </div>
                 <div>
-                  <p className="font-medium">{selectedUser.name}</p>
+                  <p className="font-medium">{selectedUser.name || `${selectedUser.firstName} ${selectedUser.lastName}`}</p>
                   <p className="text-gray-400 text-sm">{selectedUser.email}</p>
                 </div>
               </div>
@@ -1043,15 +1260,27 @@ const AdminUsers = () => {
             </div>
             <div className="p-6">
               <div className="flex items-center mb-4">
-                <div className="h-10 w-10 rounded-full overflow-hidden mr-3">
-                  <img
-                    src={selectedUser.avatar || "/placeholder.svg"}
-                    alt={selectedUser.name}
-                    className="h-full w-full object-cover"
-                  />
+                <div className="h-10 w-10 rounded-full overflow-hidden mr-3 bg-gray-600 flex items-center justify-center">
+                  {selectedUser.avatar || selectedUser.profileImage ? (
+                    <img
+                      src={selectedUser.avatar || selectedUser.profileImage}
+                      alt={selectedUser.name || `${selectedUser.firstName} ${selectedUser.lastName}`}
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        const userName = selectedUser.name || `${selectedUser.firstName || ''} ${selectedUser.lastName || ''}`.trim() || 'User'
+                        const initials = userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+                        e.target.style.display = 'none'
+                        e.target.parentElement.innerHTML = `<div class="h-full w-full bg-purple-600 flex items-center justify-center text-white font-bold text-sm">${initials}</div>`
+                      }}
+                    />
+                  ) : (
+                    <div className="h-full w-full bg-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                      {((selectedUser.name || `${selectedUser.firstName || ''} ${selectedUser.lastName || ''}`.trim()) || 'U').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                    </div>
+                  )}
                 </div>
                 <div>
-                  <p className="font-medium">{selectedUser.name}</p>
+                  <p className="font-medium">{selectedUser.name || `${selectedUser.firstName} ${selectedUser.lastName}`}</p>
                   <p className="text-gray-400 text-sm">{selectedUser.email}</p>
                 </div>
               </div>
