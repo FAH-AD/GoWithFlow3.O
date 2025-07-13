@@ -13,6 +13,7 @@ import {
   Users,
   CheckCircle,
   AlertTriangle,
+  Clock
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 
@@ -31,6 +32,7 @@ const PostJob = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [userProfile,setUserProfile]=useState(null)
   const token = localStorage.getItem("authToken"); // Assuming token is stored in localStorage
   const [userStatus, setUserStatus] = useState("");
 
