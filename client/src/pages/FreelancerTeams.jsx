@@ -492,6 +492,45 @@ const MyTeams = () => {
                                   </button>
                                 </div>
                               )}
+                          {milestone.status === "in-revision" && (
+                  <div className="bg-orange-500/10 border border-orange-500/30 rounded-md p-3 mt-2">
+                    <p className="text-sm text-orange-400 mb-2">
+                      This milestone requires revision. Please submit your changes.
+                    </p>
+                    {milestone.revision && (
+                      <div className="mb-2">
+                        <h4 className="text-sm font-medium text-gray-300">Revision Details:</h4>
+                        <p className="text-sm text-gray-400">{milestone.revision.details}</p>
+                        {milestone.revision.attachments && milestone.revision.attachments.length > 0 && (
+                          <div className="mt-2">
+                            <h5 className="text-sm font-medium text-gray-300">Attachments:</h5>
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              {milestone.revision.attachments.map((attachment, index) => (
+                                <a
+                                  key={index}
+                                  href={attachment.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="bg-[#2d2d3a] text-[#9333EA] px-3 py-1 rounded-md text-xs hover:bg-[#3d3d4a] transition-colors flex items-center"
+                                >
+                                  <FileText size={12} className="mr-1" />
+                                  {attachment.filename}
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <button
+                      onClick={() => openSubmitPopup(milestone, true)}
+                      className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-md flex items-center justify-center transition-colors"
+                    >
+                      <Upload size={16} className="mr-2" />
+                      Submit Revision
+                    </button>
+                  </div>
+                )}
 
 
                               {milestone.status === "submitted" && (

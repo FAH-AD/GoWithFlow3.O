@@ -477,7 +477,7 @@ export const submitMilestone = async (req, res) => {
       return customErrorHandler(res, new Error('Milestone not found'), 404);
     }
 
-    if (milestone.status !== 'in-progress') {
+    if (milestone.status !== 'in-progress' && milestone.status !== 'in-revision') {
       return customErrorHandler(res, new Error('This milestone is not in progress'), 400);
     }
 
@@ -574,17 +574,7 @@ export const submitRevision = async (req, res) => {
     await job.save();
 
     // Send notification to client
-    await Notification.create({
-      recipient: job.client,
-      type: 'revision-submitted',
-      title: 'Revision Submitted',
-      message: `A revision has been submitted for the milestone "${milestone.title}" in job "${job.title}".`,
-      data: {
-        job: job._id,
-        milestone: milestone._id,
-      },
-    });
-
+    
     // Send email notification to client
     const client = await User.findById(job.client);
     await sendEmail({

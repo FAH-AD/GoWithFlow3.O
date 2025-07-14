@@ -482,6 +482,7 @@ export const addTeamMember = async (req, res) => {
  * @route   PUT /api/jobs/:id/complete
  * @access  Private/Client
  */
+
 export const completeJob = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id).populate('client hiredFreelancer');
@@ -498,6 +499,15 @@ export const completeJob = async (req, res) => {
     // Check if job is in progress
     if (job.status !== 'in-progress') {
       return customErrorHandler(res, `Cannot complete job with status: ${job.status}`, 400);
+    }
+    
+    // Check if there are any in-progress, submitted, or in-revision milestones
+    const incompleteMilestones = job.milestones.filter(milestone => 
+      ['in-progress', 'submitted', 'in-revision'].includes(milestone.status)
+    );
+
+    if (incompleteMilestones.length > 0) {
+      return customErrorHandler(res, 'Cannot complete job. There are still incomplete milestones.', 400);
     }
     
     // Update job status

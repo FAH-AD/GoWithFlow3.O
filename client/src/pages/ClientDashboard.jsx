@@ -262,10 +262,13 @@ const ClientDashboard = () => {
         const formattedProjects = allJobs.map(job => {
           // Ensure job is a valid object
           if (!job || typeof job !== 'object') return null;
+          console.log('Job:', job);
           
           return {
             id: job._id,
+            isCrowd: job.isCrowdsourced,
             title: job.title || 'Untitled Project',
+            team: job.teams || [],
             description: job.description || 'No description available',
             budget: job.budget || 0,
             spent: job.status === 'completed' ? (job.budget || 0) : Math.floor((job.budget || 0) * 0.6),
@@ -752,7 +755,7 @@ const ClientDashboard = () => {
                 </div>
 
                 {/* Project Tabs */}
-                <div className="flex mt-4 border-b border-[#2d2d3a] overflow-x-auto">
+                {/* <div className="flex mt-4 border-b border-[#2d2d3a] overflow-x-auto">
                   <button
                     className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${activeTab === "all" ? "text-[#9333EA] border-b-2 border-[#9333EA]" : "text-gray-400 hover:text-white"}`}
                     onClick={() => setActiveTab("all")}
@@ -777,7 +780,7 @@ const ClientDashboard = () => {
                   >
                     Draft
                   </button>
-                </div>
+                </div> */}
               </div>
 
               {/* Project Cards */}

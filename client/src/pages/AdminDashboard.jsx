@@ -330,7 +330,7 @@ const AdminDashboard = () => {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-gray-400 text-sm">Total Revenue</p>
-                <h3 className="text-2xl font-bold mt-1">${stats.revenue.total.toLocaleString()}</h3>
+                <h3 className="text-2xl font-bold mt-1">PKR {stats.revenue.total.toLocaleString()}</h3>
                 <div className="flex items-center mt-2 text-green-400 text-sm">
                   <TrendingUp size={14} className="mr-1" />
                   <span>+12% from last month</span>
@@ -529,7 +529,7 @@ const AdminDashboard = () => {
           {/* Right Column - 1/3 width */}
           <div className="space-y-8">
             {/* Platform Status */}
-            <div className="bg-[#121218] rounded-lg border border-[#2d2d3a]">
+            {/* <div className="bg-[#121218] rounded-lg border border-[#2d2d3a]">
               <div className="p-6 border-b border-[#2d2d3a]">
                 <h2 className="text-xl font-bold">Platform Status</h2>
               </div>
@@ -537,7 +537,7 @@ const AdminDashboard = () => {
               <div className="p-6">
                 <PlatformStatus data={platformStatus} />
               </div>
-            </div>
+            </div> */}
 
             {/* Recent Activity */}
             <div className="bg-[#121218] rounded-lg border border-[#2d2d3a]">

@@ -410,7 +410,7 @@ const SearchJobs = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
                 className="bg-[#121218] rounded-lg border border-[#2d2d3a] overflow-hidden hover:border-[#9333EA]/50 transition-colors cursor-pointer"
-                onClick={() => navigate(`/jobs/${job._id}`)}
+               
               >
                 <div className="p-6">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">

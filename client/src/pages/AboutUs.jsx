@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { motion, useAnimation } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 
 // Animation variants
@@ -79,6 +80,7 @@ const StaggeredChildren = ({ children, className, staggerDelay = 0.1 }) => {
 };
 
 function AboutUs() {
+  const navigate = useNavigate();
   return (
     <div className="bg-[#0a0a0f] text-white min-h-screen">
       {/* Header */}
@@ -106,7 +108,8 @@ function AboutUs() {
                 transition={{ delay: 0.3, duration: 0.5 }}
                 className="inline-block"
               >
-                <button className="bg-[#9333EA] text-white px-8 py-3 rounded-md font-medium hover:bg-[#a855f7] transition-colors">
+                <button onClick={()=> navigate('/signup')}
+                 className="bg-[#9333EA] text-white px-8 py-3 rounded-md font-medium hover:bg-[#a855f7] transition-colors">
                   Join Our Mission
                 </button>
               </motion.div>
@@ -508,10 +511,10 @@ function AboutUs() {
               </div>
               
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <button className="bg-[#9333EA] text-white px-8 py-3 rounded-md font-medium hover:bg-[#a855f7] transition-colors">
+                <button onClick={()=> navigate('/signup')} className="bg-[#9333EA] text-white px-8 py-3 rounded-md font-medium hover:bg-[#a855f7] transition-colors">
                   Sign Up as Freelancer
                 </button>
-                <button className="bg-transparent border border-[#9333EA] text-white px-8 py-3 rounded-md font-medium hover:bg-[#9333EA]/10 transition-colors">
+                <button onClick={()=> navigate('/signup')} className="bg-transparent border border-[#9333EA] text-white px-8 py-3 rounded-md font-medium hover:bg-[#9333EA]/10 transition-colors">
                   Hire Talent
                 </button>
               </div>

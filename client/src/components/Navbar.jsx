@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Menu, X, ChevronDown, Bell, MessageSquare, Settings, LogOut, User, Users, Briefcase, Shield, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { Menu, X, ChevronDown, Bell, MessageSquare, Settings, LogOut, User, Users, Briefcase, Shield, CheckCircle, AlertCircle, Clock, LucideShieldQuestion } from 'lucide-react';
 import { logout, fetchUserProfile } from "../redux/AuthSlice";
 
 const Navbar = () => {
@@ -99,8 +99,8 @@ const Navbar = () => {
       return [
         { name: "Home", href: "/" },
         { name: "About Us", href: "/about-us" },
-        { name: "Find Talent", href: "/talent" },
-        { name: "How It Works", href: "/how-it-works" },
+      
+       
       ];
     }
 
@@ -111,16 +111,17 @@ const Navbar = () => {
           { name: "Users", href: "/admin/users" },
           { name: "Verify Users", href: "/admin/verify-users" },
           { name: "Issues", href: "/admin/issues" },
-          { name: "Reports", href: "/admin/reports" },
-          { name: "Settings", href: "/admin/settings" },
+          // { name: "Reports", href: "/admin/reports" },
+          // { name: "Settings", href: "/admin/settings" },
         ];
       case "client":
         return [
           { name: "Dashboard", href: "/client" },
-          { name: "Find Talent", href: "/client/search-freelancers" },
+          // { name: "Find Talent", href: "/client/search-freelancers" },
           { name: "My Jobs", href: "/client/my-jobs" },
+          { name: "My Teams", href: "/client/my-teams" },
           { name: "Messages", href: "/client/messages" },
-          { name: "Support", href: "/client/support" },
+        
         ];
       case "freelancer":
         return [
@@ -128,8 +129,9 @@ const Navbar = () => {
           { name: "Find Work", href: "/freelancer/search-job" },
           { name: "My Proposals", href: "/freelancer/my-proposals" },
           { name: "Hire Offers", href: "/freelancer/hire-offers" },
+          { name: "My Jobs", href: "/freelancer/my-jobs" },
           { name: "Messages", href: "/freelancer/messages" },
-          { name: "Support", href: "/freelancer/support" },
+         
         ];
       default:
         return [];
@@ -237,22 +239,40 @@ const Navbar = () => {
 
               {/* User Profile Dropdown */}
               <div className="relative">
-                <button onClick={toggleProfile} className="profile-trigger flex items-center gap-2 focus:outline-none">
+                 <button onClick={toggleProfile} className="profile-trigger flex items-center gap-2 focus:outline-none">
+                {user?.role === 'admin' ? (
+                  <div className="h-8 w-8 rounded-full bg-[#9333EA] flex items-center justify-center">
+                    <span className="text-white font-bold">A</span>
+                  </div>
+                ) : (
                   <div className="h-8 w-8 rounded-full overflow-hidden border-2 border-[#9333EA]">
                     <img
                       src={
                         user?.profilePic ||
-                        "https://res.cloudinary.com/dxmeatsae/image/upload/v1744198536/uploads/tep04pn8luh3bt2n24g6.png"}
+                        "https://res.cloudinary.com/dxmeatsae/image/upload/v1744198536/uploads/tep04pn8luh3bt2n24g6.png"
+                      }
                       alt="Profile"
                       className="h-full w-full object-cover"
                     />
                   </div>
-                  <span className="hidden sm:block text-sm font-medium text-white">{user?.name}</span>
-                  <ChevronDown size={16} className="text-white" />
-                </button>
+                )}
+                <span className="hidden sm:block text-sm font-medium text-white">{user?.name}</span>
+                <ChevronDown size={16} className="text-white" />
+              </button>
 
                 {isProfileOpen && (
                   <div className="profile-menu absolute right-0 mt-2 w-56 rounded-md bg-[#121218] border border-[#2d2d3a] shadow-lg py-1 z-50">
+
+                     {user?.role === 'admin' ? (
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center px-4 py-2 text-sm text-white hover:bg-[#2d2d3a] transition-colors"
+                    >
+                      <LogOut size={16} className="mr-2" />
+                      Sign out
+                    </button>
+                  ) : (
+                    <>
                     <div className="px-4 py-3 border-b border-[#2d2d3a]">
                       <p className="text-sm text-white">{userProfile?.name || user?.name}</p>
                       <p className="text-xs text-gray-400 truncate">{userProfile?.email || user?.email}</p>
@@ -270,6 +290,7 @@ const Navbar = () => {
                       <User size={16} className="mr-2" />
                       Profile
                     </Link>
+                    {user?.role === 'freelancer' && (
                     <Link
                       to={user?.role === 'client' ? `/client/my-teams` : `/freelancer/my-teams`}
                       className="flex items-center px-4 py-2 text-sm text-white hover:bg-[#2d2d3a] transition-colors"
@@ -277,12 +298,13 @@ const Navbar = () => {
                       <Users size={16} className="mr-2" />
                       My Teams
                     </Link>
+                    )}
                      <Link
-                      to={user?.role === 'client' ? `/client/my-teams` : `/freelancer/my-jobs`}
+                      to={user?.role === 'client' ? `/client/support` : `/freelancer/support`}
                       className="flex items-center px-4 py-2 text-sm text-white hover:bg-[#2d2d3a] transition-colors"
                     >
-                      <Briefcase size={16} className="mr-2" />
-                      My Jobs
+                      <LucideShieldQuestion size={16} className="mr-2" />
+                      Support
                     </Link>
 
                     {verificationStatus && (
@@ -306,7 +328,9 @@ const Navbar = () => {
                         Sign out
                       </button>
                     </div>
+                    </>)}
                   </div>
+                  
                 )}
               </div>
             </>

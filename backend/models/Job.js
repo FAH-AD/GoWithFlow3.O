@@ -11,6 +11,36 @@ const milestoneSchema = new mongoose.Schema({
     enum: ['pending', 'in-progress', 'in-revision','submitted', 'approved', 'rejected'],
     default: 'pending'
   },
+   submission: {
+          message: {
+            type: String,
+            trim: true,
+          },
+          attachments: [
+            {
+              filename: String,
+              url: String,
+            }
+          ],
+          submittedAt: {
+            type: Date,
+          },
+        },
+         revision: {
+          message: {
+            type: String,
+            trim: true,
+          },
+          attachments: [
+            {
+              filename: String,
+              url: String,
+            }
+          ],
+          submittedAt: {
+            type: Date,
+          },
+        },
   approvalDate: Date
 });
 

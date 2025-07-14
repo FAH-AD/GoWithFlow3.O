@@ -18,12 +18,12 @@ import {
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import Navbar from "../components/Navbar"
-
+import useConversation from "../components/useConversation"
 const SearchFreelancers = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const user = useSelector((state) => state.Auth?.user)
-
+ const {startConversation} = useConversation({user})
   // Parse query params from URL
   const queryParams = new URLSearchParams(location.search)
   const initialSkills = queryParams.get("skills") || ""
@@ -31,7 +31,20 @@ const SearchFreelancers = () => {
   const initialMaxRate = queryParams.get("maxRate") || ""
   const initialAvailability = queryParams.get("availability") || ""
   const initialPage = Number.parseInt(queryParams.get("page") || "1", 10)
-
+const handleStartConversation = ({otherUserId}) => {
+    startConversation({
+      receiverId: otherUserId,
+      jobId,
+      onSuccess: (data) => {
+        navigate(`/client/messages/${data.message.conversation._id}`)
+        
+        console.log("Conversation created and joined:", data);
+      },
+      onError: (err) => {
+        console.error("Failed to start conversation", err);
+      },
+    });
+  };
   // Search state
   const [searchParams, setSearchParams] = useState({
     skills: initialSkills,
@@ -341,7 +354,7 @@ const SearchFreelancers = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
                 className="bg-[#121218] rounded-lg border border-[#2d2d3a] overflow-hidden hover:border-[#9333EA]/50 transition-colors cursor-pointer"
-                onClick={() => navigate(`/freelancer/profile/${freelancer._id}`)}
+              
               >
                 <div className="p-6">
                   <div className="flex items-center mb-4">
@@ -408,17 +421,17 @@ const SearchFreelancers = () => {
                   {user.role === "client" && (
                     <div className="mt-4 flex gap-2">
                       <button
-                        onClick={(e) => handleHire(freelancer._id, e)}
+                   onClick={() => navigate(`/freelancer/profile/${freelancer._id}`)}
                         className="flex-1 py-2 bg-[#9333EA] hover:bg-[#a855f7] text-white rounded-md transition-colors text-sm"
                       >
-                        Hire
+                        View Profile
                       </button>
-                      <button
-                        onClick={(e) => handleMessage(freelancer._id, e)}
+                      {/* <button
+                      onClick={ () => handleStartConversation({otherUserId: freelancer._id})}
                         className="flex-1 py-2 bg-[#1e1e2d] hover:bg-[#2d2d3a] text-white rounded-md transition-colors text-sm"
                       >
                         Message
-                      </button>
+                      </button> */}
                     </div>
                   )}
                 </div>

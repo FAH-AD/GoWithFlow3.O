@@ -333,20 +333,12 @@ const JobBids = () => {
                 Offer Sent
               </motion.button>
             ) : (
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => handleHire(job.isCrowdsourced ? bid.freelancer._id : bid._id)}
-                className="bg-[#9333EA] text-white px-6 py-2 rounded-md flex items-center transition duration-300 ease-in-out hover:bg-[#7928CA]"
-              >
-                <UserCheck className="mr-2" size={18} />
-                Hire
-              </motion.button>
+              <></>
             )}
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => handleMessage(bid.freelancer._id)}
+              onClick={ () => handleStartConversation({freelancerId: bid.freelancer._id})}
               className="bg-[#2D3748] text-white px-6 py-2 rounded-md flex items-center transition duration-300 ease-in-out hover:bg-[#4A5568]"
             >
               <MessageSquare className="mr-2" size={18} />

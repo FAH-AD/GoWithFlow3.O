@@ -412,6 +412,16 @@ const ClientJobDetails = () => {
   // Handle job completion
   const handleCompleteJob = async () => {
     try {
+      // Check if there are any in-progress, submitted, or in-revision milestones
+      const incompleteMilestones = job.milestones.filter(milestone => 
+        ['in-progress', 'submitted', 'in-revision'].includes(milestone.status)
+      );
+
+      if (incompleteMilestones.length > 0) {
+        alert('Cannot complete job. There are still incomplete milestones. Please review and approve all milestones before completing the job.');
+        return;
+      }
+
       await jobCompletionService.completeJob(jobId);
       await fetchJobDetails();
       alert('Job marked as completed successfully! Both you and the freelancer will be prompted to leave reviews.');
@@ -420,6 +430,7 @@ const ClientJobDetails = () => {
       alert('Failed to complete job. Please try again.');
     }
   };
+
 
   // Handle starting review process
   const handleStartReview = (recipient) => {

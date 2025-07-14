@@ -96,11 +96,11 @@ function Home() {
                 <span className="text-accent">requirements</span>
               </h1>
               <p className="hero-description">Discover talented freelancers to bring your ideas to life.</p>
-              <div className="search-container">
+              {/* <div className="search-container">
                 <input type="text" placeholder="Freelancer skills, Keyword..." className="search-input" />
                 <button className="btn btn-primary search-btn">Find Freelancer</button>
-              </div>
-              <div className="suggestions">
+              </div> */}
+              {/* <div className="suggestions">
                 <span className="suggestion-label">Suggestion:</span>
                 <a href="#" className="suggestion-link">
                   UI/UX Designer
@@ -122,7 +122,7 @@ function Home() {
                   Animation
                 </a>
                 .
-              </div>
+              </div> */}
             </div>
             <div className="hero-image">
               <img src={heroImg || "/placeholder.svg"} alt="Freelancer platform illustration" />
@@ -365,7 +365,7 @@ function Home() {
             </motion.div>
 
             {/* Animated Testimonials */}
-            <motion.div
+            {/* <motion.div
               className="grid grid-cols-1 md:grid-cols-3 gap-6 my-12"
               variants={containerVariants}
               initial="hidden"
@@ -490,7 +490,7 @@ function Home() {
                   </div>
                 </div>
               </motion.div>
-            </motion.div>
+            </motion.div> */}
 
             {/* Animated CTA */}
             
